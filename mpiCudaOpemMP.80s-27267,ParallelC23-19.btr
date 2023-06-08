@@ -1,0 +1,16 @@
+
+mpiCudaOpemMP:27267 terminated with signal 11 at PC=7f478f1a0995 SP=7ffd17287f58.  Backtrace:
+/lib/x86_64-linux-gnu/libc.so.6(+0x1a0995)[0x7f478f1a0995]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x1fc0b86)[0x7f47913c0b86]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x2d407b)[0x7f478f6d407b]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x2d4446)[0x7f478f6d4446]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x2d6909)[0x7f478f6d6909]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x217986)[0x7f478f617986]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x260e01)[0x7f478f660e01]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x20b5a89)[0x7f47914b5a89]
+/lib/x86_64-linux-gnu/libmpich.so.12(+0x20b60f1)[0x7f47914b60f1]
+/lib/x86_64-linux-gnu/libmpich.so.12(PMPI_Send+0x481)[0x7f478f515041]
+./mpiCudaOpemMP(+0x17f5)[0x56165f59a7f5]
+/lib/x86_64-linux-gnu/libc.so.6(+0x29d90)[0x7f478f029d90]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80)[0x7f478f029e40]
+./mpiCudaOpemMP(+0x14e5)[0x56165f59a4e5]

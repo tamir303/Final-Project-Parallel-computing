@@ -13,6 +13,13 @@ typedef struct Info {
     double D;
 } Info;
 
-Point* readPointArrayFromFile(char* fileName);
+typedef struct Cord {
+    double x, y;
+    double t;
+} Cord;
+
+
+Point* readPointArrayFromFile(char* fileName, Info** info);
+Cord** initCords2dArray(Info* info);
 void test(int *data, int n);
-int computeOnGPU(int *data, int n);
+int computeOnGPU(Point* points, Cord* cords, int size);
