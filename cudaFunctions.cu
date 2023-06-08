@@ -11,13 +11,11 @@ __global__  void incrementByOne(int *arr, int numElements) {
 }
 
 
-int computeOnGPU(int *data, int numElements) {
+int computeOnGPU(Point point, Cord* cords, int size) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
-
-    size_t size = numElements * sizeof(float);
+    size_t size = size * sizeof(Cord);
   
-
     // Allocate memory on GPU to copy the data from the host
     int *d_A;
     err = cudaMalloc((void **)&d_A, size);

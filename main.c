@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
    // Perform computations of Cords with CUDA and OpenMP
    #pragma omp parallel for
    for (int i = 0; i < info->N; i++)
-      if (computeOnGPU(data, cords[i], info->N / size) != 0)
+      if (computeOnGPU(data[i], cords[i], info->N / size) != 0)
             MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
    MPI_Type_free(&MPI_POINT);
