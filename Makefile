@@ -1,8 +1,9 @@
 build:
 	mpicxx -fopenmp -c main.c -o main.o
+	mpicxx -fopenmp -c mathCalc.c -o mathCalc.o
 	mpicxx -fopenmp -c cFunctions.c -o cFunctions.o
 	nvcc -I./Common  -gencode arch=compute_61,code=sm_61 -c cudaFunctions.cu -o cudaFunctions.o
-	mpicxx -fopenmp -o mpiCudaOpemMP  main.o cFunctions.o cudaFunctions.o  -L/usr/local/cuda/lib -L/usr/local/cuda/lib64 -lcudart
+	mpicxx -fopenmp -o mpiCudaOpemMP  main.o cFunctions.o cudaFunctions.o mathCalc.o -L/usr/local/cuda/lib -L/usr/local/cuda/lib64 -lcudart
 	
 
 clean:

@@ -8,5 +8,11 @@ typedef struct Point {
     double a, b;
 } Point;
 
+typedef struct Info {
+    int N, K, tCount;
+    double D;
+} Info;
+
+Point* readPointArrayFromFile(char* fileName);
 void test(int *data, int n);
 int computeOnGPU(int *data, int n);
