@@ -20,4 +20,4 @@ typedef struct Cord {
 Point* readPointArrayFromFile(char* fileName, Info** info);
 Cord* initCordsArray(Info* info);
 void test(int *data, int n);
-int computeOnGPU(Point point, Cord** cords, int pSize, int cSize);
+int computeOnGPU(Point* point, Cord* cords, int pSize, int cSize);

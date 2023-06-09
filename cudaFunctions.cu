@@ -45,7 +45,7 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t p_tSize = pSize * sizeof(Point);
-    size_t c_tSize = cSize * sizeof(Cord);
+    size_t c_tSize = cSize * pSize * sizeof(Cord);
     int thread_num = pSize;
     int block_num = cSize;
 
@@ -57,13 +57,18 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
+    printf("this is fine\n");
+
     // Allocate memory on GPU to copy the data from the host
     Cord *c_A;
-    err = cudaMalloc((void **)&c_A, c_tSize * pSize);
+    err = cudaMalloc((void **)&c_A, c_tSize);
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to allocate device memory on c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+
+        printf("this is fine\n");
+
 
     // Copy data from host to the GPU memory
     err = cudaMemcpy(p_A, points, p_tSize, cudaMemcpyHostToDevice);
@@ -71,6 +76,7 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to copy data from host to device p_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    printf("this is fine\n");
 
     // Copy data from host to the GPU memory
     err = cudaMemcpy(c_A, cords, c_tSize, cudaMemcpyHostToDevice);
@@ -78,13 +84,15 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    printf("this is fine\n");
 
-    calcCords<<<block_num, thread_num>>>(c_A, p_A);
+    calcCords<<<block_num, thread_num>>>(c_A, p_A, calcX, calcY);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    printf("this is fine\n");
 
     // Copy the  result from GPU to the host memory.
     err = cudaMemcpy(cords, c_A, c_tSize, cudaMemcpyDeviceToHost);
@@ -92,12 +100,14 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to copy result array from c_A to cords -%s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    printf("this is fine\n");
 
     // Free allocated memory on GPU
     if (cudaFree(c_A) != cudaSuccess) {
         fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    printf("this is fine\n");
 
     // Free allocated memory on GPU
     if (cudaFree(p_A) != cudaSuccess) {

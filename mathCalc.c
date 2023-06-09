@@ -2,7 +2,7 @@
 
 #define PI 3.14159
 
-double calcX(double x1, double x2, int t) {
+double calcX(double x1, double x2, double t) {
     return ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
 }
 
