@@ -57,14 +57,18 @@ int main(int argc, char *argv[]) {
       MPI_Recv(data, (info->N / size), MPI_POINT, 0, 0, MPI_COMM_WORLD, &status);
    }
 
-   // Initialize 2D array of cords
-   Cord** cords = initCords2dArray(info);
-
+   // Initialize 2d array of cords
+   Cord* cords = initCordsArray(info);
+   
    // Perform computations of Cords with CUDA and OpenMP
-   #pragma omp parallel for
-   for (int i = 0; i < info->N; i++)
-      if (computeOnGPU(data[i], cords[i], info->N / size) != 0)
-            MPI_Abort(MPI_COMM_WORLD, __LINE__);
+   /**
+    * data - Array of Points size info->N / processes
+    * cords - 2d Array of Cords per t(i)
+    * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
+   */
+   if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
+         MPI_Abort(MPI_COMM_WORLD, __LINE__);
+
 
    MPI_Type_free(&MPI_POINT);
    MPI_Type_free(&MPI_INFO);

@@ -1,7 +1,5 @@
 #pragma once
 
-#define PART  100
-
 typedef struct Point {
     int id;
     double x1, x2;
@@ -20,6 +18,6 @@ typedef struct Cord {
 
 
 Point* readPointArrayFromFile(char* fileName, Info** info);
-Cord** initCords2dArray(Info* info);
+Cord* initCordsArray(Info* info);
 void test(int *data, int n);
-int computeOnGPU(Point point, Cord* cords, int size);
+int computeOnGPU(Point point, Cord** cords, int pSize, int cSize);

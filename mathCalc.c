@@ -1,7 +1,9 @@
 #include "mathCalc.h"
 
+#define PI 3.14159
+
 double calcX(double x1, double x2, int t) {
-    return ((x2 - x1) / 2) * sin(t * M_PI) + ((x2 + x1) / 2);
+    return ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
 }
 
 double calcY(double x, double a, double b) {

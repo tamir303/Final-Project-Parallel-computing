@@ -1,56 +1,74 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include "myProto.h"
+#include "mathCalc.h"
 
-__global__  void incrementByOne(int *arr, int numElements) {
+__global__  void calcCords(int *cords) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    // Increment the proper value of the arrray according to thread ID 
-    if (i < numElements)
-        arr[i]++;
+    cords[i] = 
 }
 
 
-int computeOnGPU(Point point, Cord* cords, int size) {
+int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
-    size_t size = size * sizeof(Cord);
-  
+    size_t p_tSize = pSize * sizeof(Point);
+    size_t c_tSize = cSize * sizeof(Cord);
+    int thread_num = pSize;
+    int block_num = cSize;
+
     // Allocate memory on GPU to copy the data from the host
-    int *d_A;
-    err = cudaMalloc((void **)&d_A, size);
+    Point *p_A;
+    err = cudaMalloc((void **)&p_A, p_tSize);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to allocate device memory - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to allocate device memory on p_A - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    // Allocate memory on GPU to copy the data from the host
+    Cord *c_A;
+    err = cudaMalloc((void **)&c_A, c_tSize * pSize);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to allocate device memory on c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
     // Copy data from host to the GPU memory
-    err = cudaMemcpy(d_A, data, size, cudaMemcpyHostToDevice);
+    err = cudaMemcpy(p_A, points, p_tSize, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy data from host to device - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy data from host to device p_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
+    // Copy data from host to the GPU memory
+    err = cudaMemcpy(c_A, cords, c_tSize, cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
 
-    // Launch the Kernel
-    int threadsPerBlock = 256;
-    int blocksPerGrid =(numElements + threadsPerBlock - 1) / threadsPerBlock;
-    incrementByOne<<<blocksPerGrid, threadsPerBlock>>>(d_A, numElements);
+    calcCords<<<block_num, thread_num>>>(c_A, p_A);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to launch vectorAdd kernel -  %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
     // Copy the  result from GPU to the host memory.
-    err = cudaMemcpy(data, d_A, size, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(cords, c_A, c_tSize, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy result array from device to host -%s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy result array from c_A to cords -%s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
     // Free allocated memory on GPU
-    if (cudaFree(d_A) != cudaSuccess) {
+    if (cudaFree(c_A) != cudaSuccess) {
+        fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    // Free allocated memory on GPU
+    if (cudaFree(p_A) != cudaSuccess) {
         fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
