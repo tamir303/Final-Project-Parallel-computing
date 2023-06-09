@@ -59,16 +59,16 @@ int main(int argc, char *argv[]) {
 
    // Initialize 2d array of cords
    Cord* cords = initCordsArray(info);
-   
+
    // Perform computations of Cords with CUDA and OpenMP
    /**
     * data - Array of Points size info->N / processes
     * cords - 2d Array of Cords per t(i)
     * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
    */
-  if (rank == 0)
-      if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
-            MPI_Abort(MPI_COMM_WORLD, __LINE__);
+   if (rank == 0)
+         if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
+               MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
 
    MPI_Type_free(&MPI_POINT);

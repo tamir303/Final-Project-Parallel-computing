@@ -24,6 +24,8 @@ __global__ void calcCords(
     int tCount = blockIdx.x;
     int offset = blockDim.x;
     
+    printf("sdaasdas\n");
+
     // Retrieve the necessary values from the input arrays
     double x1 = points[point].x1;
     double x2 = points[point].x2;
@@ -37,6 +39,8 @@ __global__ void calcCords(
     
     // Calculate the y coordinate using the user-defined function
     cords[tCount * offset + point].y = fPcalcY(xCord, a, b);
+
+    printf("point %d t=%d x=%lf y=%lf\n", point, cords[tCount * offset + point].t, cords[tCount * offset + point].x, cords[tCount * offset + point].y);
 }
 
 
@@ -57,8 +61,6 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
-    printf("this is fine\n");
-
     // Allocate memory on GPU to copy the data from the host
     Cord *c_A;
     err = cudaMalloc((void **)&c_A, c_tSize);
@@ -67,16 +69,12 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
-        printf("this is fine\n");
-
-
     // Copy data from host to the GPU memory
     err = cudaMemcpy(p_A, points, p_tSize, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to copy data from host to device p_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    printf("this is fine\n");
 
     // Copy data from host to the GPU memory
     err = cudaMemcpy(c_A, cords, c_tSize, cudaMemcpyHostToDevice);
@@ -84,7 +82,6 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    printf("this is fine\n");
 
     calcCords<<<block_num, thread_num>>>(c_A, p_A, calcX, calcY);
     err = cudaGetLastError();
@@ -92,7 +89,6 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    printf("this is fine\n");
 
     // Copy the  result from GPU to the host memory.
     err = cudaMemcpy(cords, c_A, c_tSize, cudaMemcpyDeviceToHost);
