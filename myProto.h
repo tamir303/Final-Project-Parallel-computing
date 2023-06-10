@@ -1,5 +1,7 @@
 #pragma once
 
+#define PI 3.14159
+
 typedef struct Point {
     int id;
     double x1, x2;

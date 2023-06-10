@@ -1,31 +1,27 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include "myProto.h"
-#include "mathCalc.h"
+
+__device__ double calcX(double x1, double x2, double t) {
+    return ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
+}
+
+__device__ double calcY(double x, double a, double b) {
+    return a * x + b;
+}
 
 /**
  * Calculates the coordinates of points based on input data and user-defined functions.
  *
  * @param cords         Pointer to an array of Cord objects representing the coordinates (x and y) of points at different times.
- * @param points        Pointer to an array of Point objects containing information about initial positions and coefficients.
- * @param fPcalcX       Function pointer to a user-defined function that calculates the x coordinate.
- *                      Signature: double functionName(double x1, double x2, double t)
- * @param fPcalcY       Function pointer to a user-defined function that calculates the y coordinate.
- *                      Signature: double functionName(double xCord, double a, double b)
+ * @param points        Pointer to an array of Point objects containing information about initial positions and coefficients.S
  */
-__global__ void calcCords(
-    Cord* cords,
-    Point* points,
-    double (*fPcalcX)(double, double, double),
-    double (*fPcalcY)(double, double, double)
-) {
+__global__ void calcCords(Cord* cords, Point* points) {
     // Get the indices of the current thread and the total number of threads
     int point = threadIdx.x;
     int tCount = blockIdx.x;
     int offset = blockDim.x;
     
-    printf("sdaasdas\n");
-
     // Retrieve the necessary values from the input arrays
     double x1 = points[point].x1;
     double x2 = points[point].x2;
@@ -35,12 +31,10 @@ __global__ void calcCords(
     double b = points[point].b;
     
     // Calculate the x coordinate using the user-defined function
-    xCord = cords[tCount * offset + point].x = fPcalcX(x1, x2, t);
+    xCord = cords[tCount * offset + point].x = calcX(x1, x2, t);
     
     // Calculate the y coordinate using the user-defined function
-    cords[tCount * offset + point].y = fPcalcY(xCord, a, b);
-
-    printf("point %d t=%d x=%lf y=%lf\n", point, cords[tCount * offset + point].t, cords[tCount * offset + point].x, cords[tCount * offset + point].y);
+    cords[tCount * offset + point].y = calcY(xCord, a, b);
 }
 
 
@@ -83,7 +77,7 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
-    calcCords<<<block_num, thread_num>>>(c_A, p_A, calcX, calcY);
+    calcCords<<<block_num, thread_num>>>(c_A, p_A);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
@@ -96,14 +90,12 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         fprintf(stderr, "Failed to copy result array from c_A to cords -%s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    printf("this is fine\n");
 
     // Free allocated memory on GPU
     if (cudaFree(c_A) != cudaSuccess) {
         fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    printf("this is fine\n");
 
     // Free allocated memory on GPU
     if (cudaFree(p_A) != cudaSuccess) {
