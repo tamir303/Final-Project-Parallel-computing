@@ -66,9 +66,71 @@ int main(int argc, char *argv[]) {
     * cords - 2d Array of Cords per t(i)
     * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
    */
-   if (rank == 0)
-         if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
-               MPI_Abort(MPI_COMM_WORLD, __LINE__);
+   if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
+      MPI_Abort(MPI_COMM_WORLD, __LINE__);
+
+
+   int chunk_size; // Number of elements in each process
+   int found_count = 0;
+   int found_flag = 0;
+   int result_flag = 0;
+
+
+    // Distribute data among processes
+    if (rank == 0) {
+        // Assuming cords is populated with data
+        // Divide the data into equal-sized chunks
+        chunk_size = (info->tCount * info->N) / size;
+        // Scatter the chunks to each process
+        MPI_Scatter(cords, chunk_size, MPI_DOUBLE, cords, chunk_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    } else {
+        // Receive the scattered chunks
+        MPI_Scatter(cords, chunk_size, MPI_DOUBLE, cords, chunk_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+   // OpenMP parallel region
+   #pragma omp parallel num_threads(info->tCount)
+   {
+      // Iterate over data chunk assigned to each thread
+      for (int i = 0; i < chunk_size; i++) {
+         // Iterate over K cords for each t
+         for (int j = 0; j < info->K; j++) {
+               // Check distance condition
+               if (arePointsInDistance(cords[i].x, cords[i].y, cords[j].x, cords[j].y, info->D)) {
+                  // Set flag indicating a point has been found
+                  found_flag = 1;
+               }
+         }
+      }
+   }
+
+   // Communicate results to the master process
+   if (rank != 0) {
+      // Send the flag to the master process with tag 0
+      MPI_Send(&found_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+   } else {
+      // Receive flags from other processes
+      for (int i = 1; i < size; i++) {
+         // Receive the flag with tag i
+         MPI_Recv(&result_flag, 1, MPI_INT, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+         if (result_flag == 1) {
+               found_count++;
+               if (found_count >= 3) {
+                  // Send termination signal to all processes
+                  for (int j = 0; j < size; j++) {
+                     MPI_Send(&found_flag, 1, MPI_INT, j, size + 1, MPI_COMM_WORLD);
+                  }
+                  break;
+               }
+         }
+      }
+   }
+
+   // Terminate if termination signal received
+   if (found_count >= 3) {
+      MPI_Finalize();
+      return 0;
+   }
 
 
    MPI_Type_free(&MPI_POINT);
