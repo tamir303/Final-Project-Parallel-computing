@@ -3,7 +3,7 @@
 #include <omp.h>
 #include <stdlib.h>
 #include "myProto.h"
-#include "mathCalc.c"
+#include "mathCalc.h"
 #include <cstddef>  // Add this line to include the <cstddef> header
 
 /*
@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
    Point* data = NULL;
    MPI_Datatype MPI_POINT;
    MPI_Datatype MPI_INFO;
+   MPI_Datatype MPI_CORD;
 
    // Create MPI Struct for Point
    int pointLen[5] = {1, 1, 1 ,1, 1};
@@ -39,6 +40,13 @@ int main(int argc, char *argv[]) {
    MPI_Datatype infotypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE};
    MPI_Type_create_struct(4, infoLen, infodis, infotypes, &MPI_INFO);
    MPI_Type_commit(&MPI_INFO);
+
+   // Create MPI Struct for Cord
+   int cordLen[4] = {1, 1, 1 ,1};
+   MPI_Aint corddis[4] = { offsetof(Cord, id), offsetof(Cord, x), offsetof(Cord, y), offsetof(Cord, t)};
+   MPI_Datatype cordtypes[4] = {MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
+   MPI_Type_create_struct(4, cordLen, corddis, cordtypes, &MPI_INMPI_CORDFO);
+   MPI_Type_commit(&MPI_CORD);
 
    if (size != 2) {
       printf("Run the example with two processes only\n");
@@ -59,7 +67,7 @@ int main(int argc, char *argv[]) {
    }
 
    // Initialize 2d array of cords
-   Cord* cords = initCordsArray(info);
+   Cord* cords = initCordsArray(info, size);
 
    // Perform computations of Cords with CUDA and OpenMP
    /**
@@ -70,26 +78,19 @@ int main(int argc, char *argv[]) {
    if (computeOnGPU(data, cords, info->N / size, info->tCount, (info->N / size) * rank) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
-   for (int i = 0; i < info->tCount; i++)
+   MPI_Barrier(MPI_COMM_WORLD);
+
+   for (int i = 0; i < info->tCount * (info->N / 2); i++)
       printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].id, cords[i].t, cords[i].x, cords[i].y);
 
-   int chunk_size; // Number of elements in each process
+   int chunk_size = info->tCount * info->N / size; // Number of elements in each process
    int found_count = 0;
    int found_flag = 0;
    int result_flag = 0;
 
-
-    // Distribute data among processes
-    if (rank == 0) {
-        // Assuming cords is populated with data
-        // Divide the data into equal-sized chunks
-        chunk_size = (info->tCount * info->N) / size;
-        // Scatter the chunks to each process
-        MPI_Scatter(cords, chunk_size, MPI_DOUBLE, cords, chunk_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    } else {
-        // Receive the scattered chunks
-        MPI_Scatter(cords, chunk_size, MPI_DOUBLE, cords, chunk_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    }
+   // Assuming cords is populated with data
+   // Divide the data into equal-sized chunks
+   MPI_Gather(cords, chunk_size, MPI_CORD, cords, chunk_size, MPI_CORD, 0, MPI_COMM_WORLD);
 
    // OpenMP parallel region
    #pragma omp parallel num_threads(info->tCount)

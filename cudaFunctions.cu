@@ -18,7 +18,7 @@ __device__ double calcY(double x, double a, double b) {
  */
 __global__ void calcCords(Cord* cords, Point* points, int pointOffset) {
     // Get the indices of the current thread and the total number of threads
-    int point = pointOffset + threadIdx.x;
+    int point =  threadIdx.x;
     int tCount = blockIdx.x;
     int offset = blockDim.x;
     
@@ -31,7 +31,7 @@ __global__ void calcCords(Cord* cords, Point* points, int pointOffset) {
     double b = points[point].b;
 
     // Set Cord PointID
-    cords[tCount * offset + point].id = point;
+    cords[tCount * offset + point].id = pointOffset + point;
     
     // Calculate the x coordinate using the user-defined function
     xCord = cords[tCount * offset + point].x = calcX(x1, x2, t);
