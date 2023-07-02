@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <stdlib.h>
 #include "myProto.h"
+#include "mathCalc.c"
 #include <cstddef>  // Add this line to include the <cstddef> header
 
 /*
@@ -66,9 +67,11 @@ int main(int argc, char *argv[]) {
     * cords - 2d Array of Cords per t(i)
     * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
    */
-   if (computeOnGPU(data, cords, info->N / size, info->tCount) != 0)
+   if (computeOnGPU(data, cords, info->N / size, info->tCount, (info->N / size) * rank) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
+   for (int i = 0; i < info->tCount; i++)
+      printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].id, cords[i].t, cords[i].x, cords[i].y);
 
    int chunk_size; // Number of elements in each process
    int found_count = 0;

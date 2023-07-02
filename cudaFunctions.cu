@@ -16,9 +16,9 @@ __device__ double calcY(double x, double a, double b) {
  * @param cords         Pointer to an array of Cord objects representing the coordinates (x and y) of points at different times.
  * @param points        Pointer to an array of Point objects containing information about initial positions and coefficients.S
  */
-__global__ void calcCords(Cord* cords, Point* points) {
+__global__ void calcCords(Cord* cords, Point* points, int pointOffset) {
     // Get the indices of the current thread and the total number of threads
-    int point = threadIdx.x;
+    int point = pointOffset + threadIdx.x;
     int tCount = blockIdx.x;
     int offset = blockDim.x;
     
@@ -29,6 +29,9 @@ __global__ void calcCords(Cord* cords, Point* points) {
     double xCord;
     double a = points[point].a;
     double b = points[point].b;
+
+    // Set Cord PointID
+    cords[tCount * offset + point].id = point;
     
     // Calculate the x coordinate using the user-defined function
     xCord = cords[tCount * offset + point].x = calcX(x1, x2, t);
@@ -39,7 +42,7 @@ __global__ void calcCords(Cord* cords, Point* points) {
 
 
 
-int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
+int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize, int pointOffset) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t p_tSize = pSize * sizeof(Point);
@@ -77,7 +80,7 @@ int computeOnGPU(Point* points, Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
-    calcCords<<<block_num, thread_num>>>(c_A, p_A);
+    calcCords<<<block_num, thread_num>>>(c_A, p_A, pointOffset);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
