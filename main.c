@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
 
    Info* info = NULL;
    Point* data = NULL;
+   Cord* allCords = NULL;
    MPI_Datatype MPI_POINT;
    MPI_Datatype MPI_INFO;
    MPI_Datatype MPI_CORD;
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
    int cordLen[4] = {1, 1, 1 ,1};
    MPI_Aint corddis[4] = { offsetof(Cord, id), offsetof(Cord, x), offsetof(Cord, y), offsetof(Cord, t)};
    MPI_Datatype cordtypes[4] = {MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-   MPI_Type_create_struct(4, cordLen, corddis, cordtypes, &MPI_INMPI_CORDFO);
+   MPI_Type_create_struct(4, cordLen, corddis, cordtypes, &MPI_CORD);
    MPI_Type_commit(&MPI_CORD);
 
    if (size != 2) {
@@ -57,6 +58,7 @@ int main(int argc, char *argv[]) {
    // Read data and exchange information between processes
    if (rank == 0) {
       data = readPointArrayFromFile(argv[1], &info);
+      allCords = (Cord*) malloc(sizeof(Cord) * info->tCount * info->N);
       MPI_Send(info, 1, MPI_INFO, 1, 0, MPI_COMM_WORLD);
       MPI_Send(data + (info->N / size), info->N / size, MPI_POINT, 1, 0, MPI_COMM_WORLD);
    } else {
@@ -90,7 +92,7 @@ int main(int argc, char *argv[]) {
 
    // Assuming cords is populated with data
    // Divide the data into equal-sized chunks
-   MPI_Gather(cords, chunk_size, MPI_CORD, cords, chunk_size, MPI_CORD, 0, MPI_COMM_WORLD);
+   MPI_Gather(cords, chunk_size, MPI_CORD, allCords, chunk_size, MPI_CORD, 0, MPI_COMM_WORLD);
 
    // OpenMP parallel region
    #pragma omp parallel num_threads(info->tCount)
