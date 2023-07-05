@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "myProto.h"
 #include "mathCalc.h"
+#include "createMPIStruct.h"
 #include <cstddef>  // Add this line to include the <cstddef> header
 
 /*
@@ -26,30 +27,8 @@ int main(int argc, char *argv[]) {
    Point* points = NULL;
    Cord* data = NULL;
    Cord* cords = NULL;
-   MPI_Datatype MPI_POINT;
-   MPI_Datatype MPI_INFO;
-   MPI_Datatype MPI_CORD;
-
-   // Create MPI Struct for Point
-   int pointLen[5] = {1, 1, 1 ,1, 1};
-   MPI_Aint pointdis[5] = { offsetof(Point, id), offsetof(Point, x1), offsetof(Point, x2), offsetof(Point, a), offsetof(Point, b)};
-   MPI_Datatype pointtypes[5] = {MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-   MPI_Type_create_struct(5, pointLen, pointdis, pointtypes, &MPI_POINT);
-   MPI_Type_commit(&MPI_POINT);
-   
-   // Create MPI Struct for Info
-   int infoLen[4] = {1, 1, 1 ,1};
-   MPI_Aint infodis[4] = { offsetof(Info, N), offsetof(Info, K), offsetof(Info, tCount), offsetof(Info, D)};
-   MPI_Datatype infotypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE};
-   MPI_Type_create_struct(4, infoLen, infodis, infotypes, &MPI_INFO);
-   MPI_Type_commit(&MPI_INFO);
-
-   // Create MPI Struct for Cord
-   int cordLen[4] = {1, 1, 1 ,1};
-   MPI_Aint corddis[4] = { offsetof(Cord, point), offsetof(Cord, x), offsetof(Cord, y), offsetof(Cord, t)};
-   MPI_Datatype cordtypes[4] = {MPI_POINT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-   MPI_Type_create_struct(4, cordLen, corddis, cordtypes, &MPI_CORD);
-   MPI_Type_commit(&MPI_CORD);
+   MPI_Datatype MPI_INFO = createInfoStruct();
+   MPI_Datatype MPI_CORD = createCordStruct();
 
    // Read data and exchange information between processes
    if (rank == 0) {
@@ -65,12 +44,6 @@ int main(int argc, char *argv[]) {
    cords = (Cord*) malloc(sizeof(Cord) * chunkSize * info->N);
    MPI_Scatter(data, chunkSize * info->N , MPI_CORD, cords, chunkSize * info->N, MPI_CORD, 0, MPI_COMM_WORLD);
 
-   // Perform computations of Cords with CUDA and OpenMP
-   /**
-    * data - Array of Points size info->N / processes
-    * cords - 2d Array of Cords per t(i)
-    * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
-   */
    if (computeOnGPU(cords, info->N, chunkSize) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
@@ -79,30 +52,29 @@ int main(int argc, char *argv[]) {
    for (int i = 0; i < info->tCount / size * info->N; i++)
       printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].point.id, cords[i].t, cords[i].x, cords[i].y);
 
-   // int chunk_size = info->tCount * info->N / size; // Number of elements in each process
-   // int found_count = 0;
-   // int found_flag = 0;
-   // int result_flag = 0;
+   int found_count = 0;
+   int found_flag = 0;
+   int result_flag = 0;
 
-   // // Assuming cords is populated with data
-   // // Divide the data into equal-sized chunks
-   // MPI_Gather(cords, chunk_size, MPI_CORD, allCords, chunk_size, MPI_CORD, 0, MPI_COMM_WORLD);
+   // Assuming cords is populated with data
+   // Divide the data into equal-sized chunks
 
-   // // OpenMP parallel region
-   // #pragma omp parallel num_threads(info->tCount)
-   // {
-   //    // Iterate over data chunk assigned to each thread
-   //    for (int i = 0; i < chunk_size; i++) {
-   //       // Iterate over K cords for each t
-   //       for (int j = 0; j < info->K; j++) {
-   //             // Check distance condition
-   //             if (arePointsInDistance(cords[i].x, cords[i].y, cords[j].x, cords[j].y, info->D)) {
-   //                // Set flag indicating a point has been found
-   //                found_flag = 1;
-   //             }
-   //       }
-   //    }
-   // }
+   // OpenMP parallel region
+   #pragma omp parallel num_threads(info->tCount)
+   {
+      // Iterate over data chunk assigned to each thread
+      #pragma omp parallel for
+      for (int i = 0; i < chunkSize; i++) {
+         // Iterate over K cords for each t
+         for (int j = 0; j < info->N; j++) {
+               // Check distance condition
+               if (arePointsInDistance(cords[i].x, cords[i].y, cords[j].x, cords[j].y, info->D)) {
+                  // Set flag indicating a point has been found
+                  found_count ++;
+               }
+         }
+      }
+   }
 
    // // Communicate results to the master process
    // if (rank != 0) {
