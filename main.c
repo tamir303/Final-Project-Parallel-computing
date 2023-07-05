@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <omp.h>
 #include <stdlib.h>
+#include <string.h>
 #include "myProto.h"
 #include "mathCalc.h"
 #include "createMPIStruct.h"
-#include <cstddef>  // Add this line to include the <cstddef> header
+
+#define PCT 3 // Number of points to satisfy the proximity criteria
 
 /*
 Simple MPI+OpenMP+CUDA Integration example
@@ -52,61 +54,69 @@ int main(int argc, char *argv[]) {
    for (int i = 0; i < info->tCount / size * info->N; i++)
       printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].point.id, cords[i].t, cords[i].x, cords[i].y);
 
-   int found_count = 0;
-   int found_flag = 0;
-   int result_flag = 0;
-
    // Assuming cords is populated with data
    // Divide the data into equal-sized chunks
 
    // OpenMP parallel region
+   char** results[chunkSize];
+   int countResults = 0;
    #pragma omp parallel num_threads(info->tCount)
    {
       // Iterate over data chunk assigned to each thread
+      int found_point = 0;
+      int found_group = 0;
       #pragma omp parallel for
-      for (int i = 0; i < chunkSize; i++) {
+      for (int t = 0; t < chunkSize; t++) {
+         int offset = t * info->N;
+         int threePoints = {0, 0 ,0}
+         Cord* tCountRegion = cords + offset;
          // Iterate over K cords for each t
-         for (int j = 0; j < info->N; j++) {
+         for (int Pi = 0; Pi < info->N && found_group != PCT; Pi++) {
+            for (int Pj = Pi + 1; Pj < info->N && found_point != info->K; Pj++)
                // Check distance condition
-               if (arePointsInDistance(cords[i].x, cords[i].y, cords[j].x, cords[j].y, info->D)) {
+               if (arePointsInDistance(tCountRegion[Pi].x, tCountRegion[Pi].y, tCountRegion[Pj].x, tCountRegion[Pj].y, info->D)) {
                   // Set flag indicating a point has been found
-                  found_count ++;
+                  found_point ++;
+               }
+
+            if (found_point == info->K) {
+               threePoints[found_group ++] = tCountRegion[Pi].point.id;
+               found_point = 0;
+            }
+         }
+
+         if (found_group == PCT) {
+            results[countResults][100];
+            sprintf(results[countResults], "Points %d, %d, %d satisfy Proximity Criteria at t = %lf",
+               threePoints[0], threePoints[1], threePoints[2], tCountRegion[Pi].t);
+         }
+      }
+   }
+
+   // Communicate results to the master process
+   if (rank != 0) {
+      // Send the flag to the master process with tag 0
+      MPI_Send(&found_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+   } else {
+      // Receive flags from other processes
+      for (int i = 1; i < size; i++) {
+         // Receive the flag with tag i
+         MPI_Recv(&result_flag, 1, MPI_INT, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+         if (result_flag == 1) {
+               found_count++;
+               if (found_count >= 3) {
+                  // Send termination signal to all processes
+                  for (int j = 0; j < size; j++) {
+                     MPI_Send(&found_flag, 1, MPI_INT, j, size + 1, MPI_COMM_WORLD);
+                  }
+                  break;
                }
          }
       }
    }
 
-   // // Communicate results to the master process
-   // if (rank != 0) {
-   //    // Send the flag to the master process with tag 0
-   //    MPI_Send(&found_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-   // } else {
-   //    // Receive flags from other processes
-   //    for (int i = 1; i < size; i++) {
-   //       // Receive the flag with tag i
-   //       MPI_Recv(&result_flag, 1, MPI_INT, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-   //       if (result_flag == 1) {
-   //             found_count++;
-   //             if (found_count >= 3) {
-   //                // Send termination signal to all processes
-   //                for (int j = 0; j < size; j++) {
-   //                   MPI_Send(&found_flag, 1, MPI_INT, j, size + 1, MPI_COMM_WORLD);
-   //                }
-   //                break;
-   //             }
-   //       }
-   //    }
-   // }
-
-   // Terminate if termination signal received
-   // if (found_count >= 3) {
-   //    MPI_Finalize();
-   //    return 0;
-   // }
-
-
-   MPI_Type_free(&MPI_POINT);
    MPI_Type_free(&MPI_INFO);
+   MPI_Type_free(&MPI_CORD);
    MPI_Finalize();
 
    return 0;
