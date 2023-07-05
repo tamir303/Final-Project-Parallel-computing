@@ -20,10 +20,12 @@ int main(int argc, char *argv[]) {
 
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &size);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
    Info* info = NULL;
-   Point* data = NULL;
-   Cord* allCords = NULL;
+   Point* points = NULL;
+   Cord* data = NULL;
+   Cord* cords = NULL;
    MPI_Datatype MPI_POINT;
    MPI_Datatype MPI_INFO;
    MPI_Datatype MPI_CORD;
@@ -43,33 +45,25 @@ int main(int argc, char *argv[]) {
    MPI_Type_commit(&MPI_INFO);
 
    // Create MPI Struct for Cord
-   int cordLen[4] = {1, 1, 1 ,1};
-   MPI_Aint corddis[4] = { offsetof(Cord, id), offsetof(Cord, x), offsetof(Cord, y), offsetof(Cord, t)};
-   MPI_Datatype cordtypes[4] = {MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-   MPI_Type_create_struct(4, cordLen, corddis, cordtypes, &MPI_CORD);
+   int cordLen[5] = {1, 1, 1, 1 ,1};
+   MPI_Aint corddis[5] = { offsetof(Point, point), offsetof(Cord, id), offsetof(Cord, x), offsetof(Cord, y), offsetof(Cord, t)};
+   MPI_Datatype cordtypes[5] = {MPI_POINT, MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
+   MPI_Type_create_struct(5, cordLen, corddis, cordtypes, &MPI_CORD);
    MPI_Type_commit(&MPI_CORD);
-
-   if (size != 2) {
-      printf("Run the example with two processes only\n");
-      MPI_Abort(MPI_COMM_WORLD, __LINE__);
-   }
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
    // Read data and exchange information between processes
    if (rank == 0) {
-      data = readPointArrayFromFile(argv[1], &info);
-      allCords = (Cord*) malloc(sizeof(Cord) * info->tCount * info->N);
+      points = readPointArrayFromFile(argv[1], &info);
+      data = initCordsArray(info);
       MPI_Send(info, 1, MPI_INFO, 1, 0, MPI_COMM_WORLD);
-      MPI_Send(data + (info->N / size), info->N / size, MPI_POINT, 1, 0, MPI_COMM_WORLD);
    } else {
       info = (Info*) malloc(sizeof(Info));
       MPI_Recv(info, 1, MPI_INFO, 0, 0, MPI_COMM_WORLD, &status);
-      data = (Point *) malloc(sizeof(Point) * (info->N / size));
-      MPI_Recv(data, (info->N / size), MPI_POINT, 0, 0, MPI_COMM_WORLD, &status);
    }
 
-   // Initialize 2d array of cords
-   Cord* cords = initCordsArray(info, size);
+   int chunkSize = rank == size - 1 ? (int) ceil(info->tCount / size) : info->tCount / size;
+   cords = (Cord*) malloc(sizeof(Cords) * chunkSize);
+   MPI_Scatter(data, chunkSize, MPI_CORD, cords, chunkSize, MPI_CORD, 0, MPI_COMM_WORLD);
 
    // Perform computations of Cords with CUDA and OpenMP
    /**
@@ -77,7 +71,7 @@ int main(int argc, char *argv[]) {
     * cords - 2d Array of Cords per t(i)
     * return -> Calculate all Cords for t(i) = 2 * i / tCount - 1
    */
-   if (computeOnGPU(data, cords, info->N / size, info->tCount, (info->N / size) * rank) != 0)
+   if (computeOnGPU(cords, info->N, chunkSize) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
    MPI_Barrier(MPI_COMM_WORLD);

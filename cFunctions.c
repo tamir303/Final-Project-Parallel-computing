@@ -35,14 +35,14 @@ Point* readPointArrayFromFile(char* fileName, Info** info) {
     return point;
 }
 
-Cord* initCordsArray(Info* info, int size) {
-    int chunkSize  = info->N / size;
-    Cord* cords = (Cord*) malloc(sizeof(Cord) * (info->tCount + 1) * chunkSize);
+Cord* initCordsArray(Info* info, Point* points) {
+    Cord* cords = (Cord*) malloc(sizeof(Cord) * (info->tCount + 1) * info->N);
     #pragma omp parallel for
-    for (int i = 0; i <= info->tCount; i++) {
-        double t = 2.0 * i / (info->tCount - 1.0) - 1.0;
-        for (int j = 0; j < chunkSize; j++) {
-            cords[j + i * chunkSize].t = t;
+    for (int tCount = 0; tCount <= info->tCount; tCount++) {
+        double t = 2.0 * tCount / (info->tCount - 1.0) - 1.0;
+        for (int point = 0; point < info->N; point++) {
+            cords[point + tCount * info->N].point = points[point];
+            cords[point + tCount * info->N].t = t;
         }
     }
 

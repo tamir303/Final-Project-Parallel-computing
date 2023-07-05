@@ -14,13 +14,13 @@ typedef struct Info {
 } Info;
 
 typedef struct Cord {
-    int id;
+    Point point;
     double x, y;
     double t;
 } Cord;
 
 
 Point* readPointArrayFromFile(char* fileName, Info** info);
-Cord* initCordsArray(Info* info, int size);
+Cord* initCordsArray(Info* info, Point* points);
 void test(int *data, int n);
-int computeOnGPU(Point* point, Cord* cords, int pSize, int cSize, int pointOffset);
+int computeOnGPU(Cord* cords, int pSize, int cSize);
