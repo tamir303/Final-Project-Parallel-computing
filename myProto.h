@@ -3,7 +3,6 @@
 #define PI 3.14159
 #define PCT 3 // Number of points to satisfy the proximity criteria
 
-
 typedef struct Point {
     int id;
     double x1, x2;
@@ -20,6 +19,11 @@ typedef struct Cord {
     double x, y;
     double t;
 } Cord;
+
+typedef struct Results {
+    char** results;
+    int resultCounter;
+} Results;
 
 
 Point* readPointArrayFromFile(char* fileName, Info** info);

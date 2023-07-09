@@ -28,7 +28,7 @@ Point* readPointArrayFromFile(char* fileName, Info** info) {
             printf("Failed to read point {%d} cFunctions.c line {%d}\n", count, __LINE__);
             exit(-1);
         }
-        printf("\nPoint %d x1: %lf x2: %lf a: %lf b: %lf",point[count].id, point[count].x1, point[count].x2, point[count].a, point[count].b);
+        // printf("\nPoint %d x1: %lf x2: %lf a: %lf b: %lf",point[count].id, point[count].x1, point[count].x2, point[count].a, point[count].b);
         count++;
     }
     printf("\n");

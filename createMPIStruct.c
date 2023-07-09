@@ -32,3 +32,14 @@ MPI_Datatype createCordStruct() {
 
    return MPI_CORD;
 }
+
+MPI_Datatype createResultStruct() {
+   MPI_Datatype MPI_RES;
+   int resLen[2] = {1, 1};
+   MPI_Aint resdis[2] = { offsetof(Results, results), offsetof(Results, resultCounter)};
+   MPI_Datatype restypes[2] = {MPI_CHAR, MPI_INT};
+   MPI_Type_create_struct(2, resLen, resdis, restypes, &MPI_RES);
+   MPI_Type_commit(&MPI_RES);
+
+   return MPI_RES;
+}

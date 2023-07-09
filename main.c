@@ -3,8 +3,8 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "myProto.h"
-#include "mathCalc.h"
 #include "createMPIStruct.h"
 
 /*
@@ -27,8 +27,11 @@ int main(int argc, char *argv[]) {
    Point* points = NULL;
    Cord* data = NULL;
    Cord* cords = NULL;
+   Results* res = NULL;
+   Results* allRes = NULL;
    MPI_Datatype MPI_INFO = createInfoStruct();
    MPI_Datatype MPI_CORD = createCordStruct();
+   MPI_Datatype MPI_RES = createResultStruct();
 
    // Read data and exchange information between processes
    if (rank == 0) {
@@ -49,65 +52,65 @@ int main(int argc, char *argv[]) {
 
    MPI_Barrier(MPI_COMM_WORLD);
 
-   for (int i = 0; i < info->tCount / size * info->N; i++)
-      printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].point.id, cords[i].t, cords[i].x, cords[i].y);
+   // for (int i = 0; i < info->tCount / size * info->N; i++)
+   //    printf("proc: %d, pointID: %d, t: %lf, x: %lf, y: %lf\n", rank, cords[i].point.id, cords[i].t, cords[i].x, cords[i].y);
 
    // Assuming cords is populated with data
    // Divide the data into equal-sized chunks
 
    // OpenMP parallel region
-   char** results[chunkSize];
-   int countResults = 0;
+   res = (Results*) malloc(sizeof(Results));
+   res->results = (char**) malloc(chunkSize * sizeof(char*));
+   res->resultCounter = 0;
+   omp_lock_t lock;
+   omp_init_lock(&lock);
    #pragma omp parallel num_threads(chunkSize)
    {
       // Iterate over data chunk assigned to each thread
       int count_group = 0;
-      #pragma omp parallel for
-      for (int t = 0; t < chunkSize; t++) {
-         int offset = t * info->N;
-         int threePoints = {0, 0 ,0};
-         Cord* tCountRegion = cords + offset;
+      int offset = omp_get_thread_num() * info->N;
+      int threePoints[PCT] = { 0 };
+      Cord* tCountRegion = cords + offset;
 
-         // Iterate over each region of points per t
-         int* satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
-         for (int i = 0; i < info->N && count_group < PCT, i++)
-            if (satisfiers[i] == 1) {
-               threePoints[count_group] = satisfiers[i];
-               count_group ++;
-            }
-
-         if (found_group == PCT) {
-            results[countResults][100];
-            sprintf(results[countResults], "Points %d, %d, %d satisfy Proximity Criteria at t = %lf",
-               threePoints[0], threePoints[1], threePoints[2], tCountRegion[Pi].t);
+      // Iterate over each region of points per t
+      int* satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
+      for (int i = 0; i < info->N && count_group < PCT; i++)
+         if (satisfiers[i]) {
+            threePoints[count_group] = tCountRegion[i].point.id;
+            count_group ++;
          }
+
+      if (count_group == PCT) {
+         omp_set_lock(&lock);
+         res->results[res->resultCounter][100];
+         sprintf(res->results[res->resultCounter], "Points %d, %d, %d satisfy Proximity Criteria at t = %lf",
+            threePoints[0], threePoints[1], threePoints[2], tCountRegion[0].t);
+         res->resultCounter++;
+         omp_unset_lock(&lock);
       }
    }
+   omp_destroy_lock(&lock);
 
    // Communicate results to the master process
-   if (rank != 0) {
-      // Send the flag to the master process with tag 0
-      MPI_Send(&found_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-   } else {
-      // Receive flags from other processes
-      for (int i = 1; i < size; i++) {
-         // Receive the flag with tag i
-         MPI_Recv(&result_flag, 1, MPI_INT, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-         if (result_flag == 1) {
-               found_count++;
-               if (found_count >= 3) {
-                  // Send termination signal to all processes
-                  for (int j = 0; j < size; j++) {
-                     MPI_Send(&found_flag, 1, MPI_INT, j, size + 1, MPI_COMM_WORLD);
-                  }
-                  break;
-               }
-         }
+   if (rank == 0)
+      allRes = (Results*) malloc(size * sizeof(Results));
+   MPI_Gather(res, 1, MPI_RES, allRes, 1, MPI_RES, 0, MPI_COMM_WORLD);
+
+   if (rank == 0) {
+      int count = 0;
+      for (int i = 0; i < size; i++) {
+         for (int j = 0; j < allRes[i].resultCounter; i++)
+            printf("%s\n",allRes[i].results[j]);
+         count += allRes[i].resultCounter;
       }
+
+      if (count == 0)
+         printf("There were no 3 points found for any t\n");
    }
 
    MPI_Type_free(&MPI_INFO);
    MPI_Type_free(&MPI_CORD);
+   MPI_Type_free(&MPI_RES);
    MPI_Finalize();
 
    return 0;

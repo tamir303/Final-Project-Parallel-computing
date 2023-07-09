@@ -82,7 +82,7 @@ int calcCoordinates(Cord* cords, int pSize, int cSize) {
 __device__ int arePointsInDistance(double x1, double y1, double x2, double y2, double d) {
     double dx = x2 - x1;
     double dy = y2 - y1;
-    return sqrt(dx * dx + dy * dy) <= d;
+    return sqrt(dx * dx + dy * dy) > d;
 }
 
 /**
@@ -111,16 +111,17 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t c_tSize =  pSize * sizeof(Cord);
+    size_t s_tSize = pSize * sizeof(int);
     int* satisfiers;
     int thread_num = pSize;
 
-    satisfiers = (int*) malloc(sizeof(int) * pSize);
+    satisfiers = (int*) malloc(s_tSize);
 
     // Allocate memory on GPU to copy the data from the host
     int *s_A;
-    err = cudaMalloc((void **)&s_A, c_tSize);
+    err = cudaMalloc((void **)&s_A, s_tSize);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to allocate device memory on c_A - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to allocate device memory on s_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
@@ -147,9 +148,9 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     }
 
     // Copy the  result from GPU to the host memory.
-    err = cudaMemcpy(satisfiers, s_A, c_tSize, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(satisfiers, s_A, s_tSize, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy result array from c_A to cords -%s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy result array from s_A to satisfiers -%s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
