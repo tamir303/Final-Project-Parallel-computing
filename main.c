@@ -7,8 +7,6 @@
 #include "mathCalc.h"
 #include "createMPIStruct.h"
 
-#define PCT 3 // Number of points to satisfy the proximity criteria
-
 /*
 Simple MPI+OpenMP+CUDA Integration example
 Initially the array of size 4*PART is known for the process 0.
@@ -63,27 +61,20 @@ int main(int argc, char *argv[]) {
    #pragma omp parallel num_threads(chunkSize)
    {
       // Iterate over data chunk assigned to each thread
-      int found_point = 0;
-      int found_group = 0;
+      int count_group = 0;
       #pragma omp parallel for
       for (int t = 0; t < chunkSize; t++) {
          int offset = t * info->N;
-         int threePoints = {0, 0 ,0}
+         int threePoints = {0, 0 ,0};
          Cord* tCountRegion = cords + offset;
-         // Iterate over K cords for each t
-         for (int Pi = 0; Pi < info->N && found_group != PCT; Pi++) {
-            for (int Pj = Pi + 1; Pj < info->N && found_point != info->K; Pj++)
-               // Check distance condition
-               if (arePointsInDistance(tCountRegion[Pi].x, tCountRegion[Pi].y, tCountRegion[Pj].x, tCountRegion[Pj].y, info->D)) {
-                  // Set flag indicating a point has been found
-                  found_point ++;
-               }
 
-            if (found_point == info->K) {
-               threePoints[found_group ++] = tCountRegion[Pi].point.id;
-               found_point = 0;
+         // Iterate over each region of points per t
+         int* satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
+         for (int i = 0; i < info->N && count_group < PCT, i++)
+            if (satisfiers[i] == 1) {
+               threePoints[count_group] = satisfiers[i];
+               count_group ++;
             }
-         }
 
          if (found_group == PCT) {
             results[countResults][100];

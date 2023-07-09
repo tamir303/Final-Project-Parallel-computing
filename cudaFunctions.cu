@@ -2,8 +2,6 @@
 #include <helper_cuda.h>
 #include "myProto.h"
 
-#define PCT 3 // Number of points to satisfy the proximity criteria
-
 __device__ double calcX(double x1, double x2, double t) {
     return ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
 }
@@ -92,13 +90,13 @@ __device__ int arePointsInDistance(double x1, double y1, double x2, double y2, d
  *
  * @param cords         Pointer to an array of Cord objects representing the coordinates (x and y) of points at different times.
  */
-__global__ void countPointsInDistance(Cord* cords, int* satisfiers, double distance) {
+__global__ void countPointsInDistance(Cord* cords, int* satisfiers, double distance, int k) {
     // Get the indices of the current thread and the total number of threads
     int Pi =  threadIdx.x;
     int numOfPoints = blockDim.x;
     int count = 0;
 
-    for (int Pj = 0; Pj < numOfPoints && count < PCT ; Pj++) {
+    for (int Pj = 0; Pj < numOfPoints && count < k ; Pj++) {
         if (Pi != Pj) {
             Cord PiCords = cords[Pi];
             Cord PjCords = cords[Pj];
@@ -106,10 +104,10 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, double dista
         }
     }
 
-    satisfiers[Pi] = count == PCT;
+    satisfiers[Pi] = count == k;
 }
 
-int calcProximityCriteria(Cord* cords, double distance, int pSize) {
+int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t c_tSize =  pSize * sizeof(Cord);
@@ -119,7 +117,7 @@ int calcProximityCriteria(Cord* cords, double distance, int pSize) {
     satisfiers = (int*) malloc(sizeof(int) * pSize);
 
     // Allocate memory on GPU to copy the data from the host
-    Cord *s_A;
+    int *s_A;
     err = cudaMalloc((void **)&s_A, c_tSize);
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to allocate device memory on c_A - %s\n", cudaGetErrorString(err));
@@ -141,7 +139,7 @@ int calcProximityCriteria(Cord* cords, double distance, int pSize) {
         exit(EXIT_FAILURE);
     }
 
-    calcCords<<<block_num, thread_num>>>(c_A);
+    countPointsInDistance<<<1, thread_num>>>(c_A, s_A, distance, k);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
@@ -149,7 +147,7 @@ int calcProximityCriteria(Cord* cords, double distance, int pSize) {
     }
 
     // Copy the  result from GPU to the host memory.
-    err = cudaMemcpy(cords, c_A, c_tSize, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(satisfiers, s_A, c_tSize, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to copy result array from c_A to cords -%s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
@@ -161,5 +159,11 @@ int calcProximityCriteria(Cord* cords, double distance, int pSize) {
         exit(EXIT_FAILURE);
     }
 
-    return 0;
+    // Free allocated memory on GPU
+    if (cudaFree(s_A) != cudaSuccess) {
+        fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    return satisfiers;
 }

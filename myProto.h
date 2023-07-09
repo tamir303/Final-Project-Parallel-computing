@@ -1,6 +1,8 @@
 #pragma once
 
 #define PI 3.14159
+#define PCT 3 // Number of points to satisfy the proximity criteria
+
 
 typedef struct Point {
     int id;
@@ -23,4 +25,5 @@ typedef struct Cord {
 Point* readPointArrayFromFile(char* fileName, Info** info);
 Cord* initCordsArray(Info* info, Point* points);
 void test(int *data, int n);
-int computeOnGPU(Cord* cords, int pSize, int cSize);
+int calcCoordinates(Cord* cords, int pSize, int cSize);
+int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k);
