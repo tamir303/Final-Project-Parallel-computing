@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
    cords = (Cord*) malloc(sizeof(Cord) * chunkSize * info->N);
    MPI_Scatter(data, chunkSize * info->N , MPI_CORD, cords, chunkSize * info->N, MPI_CORD, 0, MPI_COMM_WORLD);
 
-   if (computeOnGPU(cords, info->N, chunkSize) != 0)
+   if (calcCoordinates(cords, info->N, chunkSize) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
 
    MPI_Barrier(MPI_COMM_WORLD);
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
    // OpenMP parallel region
    char** results[chunkSize];
    int countResults = 0;
-   #pragma omp parallel num_threads(info->tCount)
+   #pragma omp parallel num_threads(chunkSize)
    {
       // Iterate over data chunk assigned to each thread
       int found_point = 0;
