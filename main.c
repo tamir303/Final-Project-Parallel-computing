@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
             #pragma omp critical
             {
                if (count_group < PCT + 1) {
-                  threePoints[count_group] = tCountRegion[i].point.id;
+                  threePoints[count_group] = (double) tCountRegion[i].point.id;
                   count_group ++;
                }
             }
@@ -83,6 +83,8 @@ int main(int argc, char *argv[]) {
       if (count_group == PCT + 1) {
          #pragma omp critical 
          {
+            local_results[local_counter] = (double*) malloc((PCT + 1) * sizeof(double));
+            local_results[local_counter][0] = threePoints[0];
             local_results[local_counter][1] = threePoints[1];
             local_results[local_counter][2] = threePoints[2];
             local_results[local_counter][3] = threePoints[3];
@@ -100,16 +102,16 @@ int main(int argc, char *argv[]) {
    MPI_Gather(local_results, local_counter * (PCT + 1), MPI_DOUBLE, global_results, local_counter * (PCT + 1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
    MPI_Reduce(&local_counter, &global_counter, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-   if (rank == 0) {
-      if (global_counter == 0)
-         printf("There were no 3 points found for any t\n");
-      else
-         while (global_counter >= 0) {
-            global_counter --;
-            printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int) global_results[global_counter][1], (int) global_results[global_counter][2]
-               ,(int) global_results[global_counter][3], global_results[global_counter][4]);
-         }
-   }
+   // if (rank == 0) {
+   //    if (global_counter == 0)
+   //       printf("There were no 3 points found for any t\n");
+   //    else
+   //       while (global_counter >= 0) {
+   //          global_counter --;
+   //          printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int) global_results[global_counter][1], (int) global_results[global_counter][2]
+   //             ,(int) global_results[global_counter][3], global_results[global_counter][4]);
+   //       }
+   // }
 
    MPI_Type_free(&MPI_INFO);
    MPI_Type_free(&MPI_CORD);
