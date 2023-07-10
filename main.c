@@ -62,8 +62,6 @@ int main(int argc, char *argv[]) {
    res = (Results*) malloc(sizeof(Results));
    res->results = (char**) malloc(chunkSize * sizeof(char*));
    res->resultCounter = 0;
-   omp_lock_t lock;
-   omp_init_lock(&lock);
    #pragma omp parallel num_threads(chunkSize)
    {
       // Iterate over data chunk assigned to each thread
@@ -74,22 +72,33 @@ int main(int argc, char *argv[]) {
 
       // Iterate over each region of points per t
       int* satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
-      for (int i = 0; i < info->N && count_group < PCT; i++)
+
+      #pragma omp parallel for
+      for (int i = 0; i < info->N; i++)
          if (satisfiers[i]) {
-            threePoints[count_group] = tCountRegion[i].point.id;
-            count_group ++;
+            #pragma omp critical
+            {
+               if (count_group < PCT) {
+                  threePoints[count_group] = tCountRegion[i].point.id;
+                  count_group ++;
+               }
+            }
          }
 
       if (count_group == PCT) {
-         omp_set_lock(&lock);
-         res->results[res->resultCounter][100];
-         sprintf(res->results[res->resultCounter], "Points %d, %d, %d satisfy Proximity Criteria at t = %lf",
-            threePoints[0], threePoints[1], threePoints[2], tCountRegion[0].t);
-         res->resultCounter++;
-         omp_unset_lock(&lock);
+         #pragma omp critical 
+         {
+            res->results[res->resultCounter] = (char*) malloc(100);
+            char str[100];
+            sprintf(str, "Points %d, %d, %d satisfy Proximity Criteria at t = %lf",
+               threePoints[0], threePoints[1], threePoints[2], tCountRegion[0].t);
+            strcpy(res->results[res->resultCounter], str);
+            res->resultCounter++;
+         }
       }
    }
-   omp_destroy_lock(&lock);
+
+   MPI_Barrier(MPI_COMM_WORLD);
 
    // Communicate results to the master process
    if (rank == 0)
@@ -99,8 +108,9 @@ int main(int argc, char *argv[]) {
    if (rank == 0) {
       int count = 0;
       for (int i = 0; i < size; i++) {
-         for (int j = 0; j < allRes[i].resultCounter; i++)
+         for (int j = 0; j < allRes[i].resultCounter; j++)
             printf("%s\n",allRes[i].results[j]);
+         printf("%d", allRes[i].resultCounter);
          count += allRes[i].resultCounter;
       }
 

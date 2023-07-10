@@ -34,12 +34,18 @@ MPI_Datatype createCordStruct() {
 }
 
 MPI_Datatype createResultStruct() {
+   MPI_Datatype stringType;
+   MPI_Type_contiguous(50, MPI_CHAR, &stringType);
+   MPI_Type_commit(&stringType);
+
    MPI_Datatype MPI_RES;
-   int resLen[2] = {1, 1};
-   MPI_Aint resdis[2] = { offsetof(Results, results), offsetof(Results, resultCounter)};
-   MPI_Datatype restypes[2] = {MPI_CHAR, MPI_INT};
-   MPI_Type_create_struct(2, resLen, resdis, restypes, &MPI_RES);
+   MPI_Type_contiguous(2, stringType, &MPI_RES);
+   MPI_Aint lb, extent;
+   MPI_Type_get_extent(stringType, &lb, &extent);
+   MPI_Type_create_resized(MPI_RES, lb, extent, &MPI_RES);
    MPI_Type_commit(&MPI_RES);
+
+   MPI_Type_free(&stringType);
 
    return MPI_RES;
 }
