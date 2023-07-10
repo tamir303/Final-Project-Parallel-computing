@@ -32,20 +32,3 @@ MPI_Datatype createCordStruct() {
 
    return MPI_CORD;
 }
-
-MPI_Datatype createResultStruct() {
-   MPI_Datatype stringType;
-   MPI_Type_contiguous(50, MPI_CHAR, &stringType);
-   MPI_Type_commit(&stringType);
-
-   MPI_Datatype MPI_RES;
-   MPI_Type_contiguous(2, stringType, &MPI_RES);
-   MPI_Aint lb, extent;
-   MPI_Type_get_extent(stringType, &lb, &extent);
-   MPI_Type_create_resized(MPI_RES, lb, extent, &MPI_RES);
-   MPI_Type_commit(&MPI_RES);
-
-   MPI_Type_free(&stringType);
-
-   return MPI_RES;
-}

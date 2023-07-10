@@ -7,4 +7,3 @@
 MPI_Datatype createInfoStruct();
 MPI_Datatype createPointStruct();
 MPI_Datatype createCordStruct();
-MPI_Datatype createResultStruct();

@@ -1,0 +1,8 @@
+
+mpiCudaOpemMP:50360 terminated with signal 11 at PC=55febfe27d02 SP=7ffe5a225e60.  Backtrace:
+./mpiCudaOpemMP(+0x2d02)[0x55febfe27d02]
+/lib/x86_64-linux-gnu/libgomp.so.1(GOMP_parallel+0x46)[0x7f2672f0ea16]
+./mpiCudaOpemMP(+0x2996)[0x55febfe27996]
+/lib/x86_64-linux-gnu/libc.so.6(+0x29d90)[0x7f266fc29d90]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80)[0x7f266fc29e40]
+./mpiCudaOpemMP(+0x25c5)[0x55febfe275c5]

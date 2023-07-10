@@ -20,12 +20,6 @@ typedef struct Cord {
     double t;
 } Cord;
 
-typedef struct Results {
-    char** results;
-    int resultCounter;
-} Results;
-
-
 Point* readPointArrayFromFile(char* fileName, Info** info);
 Cord* initCordsArray(Info* info, Point* points);
 void test(int *data, int n);
