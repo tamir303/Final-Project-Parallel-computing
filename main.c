@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 
    // OpenMP parallel region
 
-   double **local_results = (double**) malloc(chunkSize * sizeof(double*)), (*global_results)[4] = NULL;
+   double *local_results = (double*) malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
    int local_counter = 0, global_counter = 0;
 
    #pragma omp parallel num_threads(chunkSize)
@@ -83,11 +83,7 @@ int main(int argc, char *argv[]) {
       if (count_group == PCT + 1) {
          #pragma omp critical 
          {
-            local_results[local_counter] = (double*) malloc((PCT + 1) * sizeof(double));
-            local_results[local_counter][0] = threePoints[0];
-            local_results[local_counter][1] = threePoints[1];
-            local_results[local_counter][2] = threePoints[2];
-            local_results[local_counter][3] = threePoints[3];
+            memcpy(&local_results[local_counter * (PCT + 1)], threePoints, sizeof(threePoints));
             local_counter ++;
          }
       }
@@ -96,22 +92,23 @@ int main(int argc, char *argv[]) {
    MPI_Barrier(MPI_COMM_WORLD);
 
    if (rank == 0)
-      global_results = (double (*)[4]) malloc(info->tCount * sizeof(double[4]));
+      global_results = (double*) malloc(info->tCount * (PCT + 1) * sizeof(double));
 
    // Communicate results to the master process
    MPI_Gather(local_results, local_counter * (PCT + 1), MPI_DOUBLE, global_results, local_counter * (PCT + 1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
    MPI_Reduce(&local_counter, &global_counter, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-   // if (rank == 0) {
-   //    if (global_counter == 0)
-   //       printf("There were no 3 points found for any t\n");
-   //    else
-   //       while (global_counter >= 0) {
-   //          global_counter --;
-   //          printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int) global_results[global_counter][1], (int) global_results[global_counter][2]
-   //             ,(int) global_results[global_counter][3], global_results[global_counter][4]);
-   //       }
-   // }
+   if (rank == 0) {
+      if (global_counter == 0)
+         printf("There were no 3 points found for any t\n");
+      else {
+         for (int i = 0; i < global_counter; i ++) {
+            int p1 = i * 4 + 1, p2 = i * 4 + 2, p3 = i * 4 + 3, t = i * 4;
+            printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int) global_results[p1],
+             (int) global_results[p2] ,(int) global_results[p3], global_results[t]);
+         }
+      }
+   }
 
    MPI_Type_free(&MPI_INFO);
    MPI_Type_free(&MPI_CORD);
