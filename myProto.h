@@ -22,6 +22,7 @@ typedef struct Cord {
 
 Point* readPointArrayFromFile(char* fileName, Info** info);
 Cord* initCordsArray(Info* info, Point* points);
-void test(int *data, int n);
+void sequential(int argc, char *argv[], double *exec_time);
+void parallel(int argc, char *argv[], double *exec_time);
 int calcCoordinates(Cord* cords, int pSize, int cSize);
 int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k);

@@ -82,7 +82,7 @@ int calcCoordinates(Cord* cords, int pSize, int cSize) {
 __device__ int arePointsInDistance(double x1, double y1, double x2, double y2, double d) {
     double dx = x2 - x1;
     double dy = y2 - y1;
-    return sqrt(dx * dx + dy * dy) > d;
+    return sqrt(dx * dx + dy * dy) < d;
 }
 
 /**
@@ -104,7 +104,7 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, double dista
         }
     }
 
-    satisfiers[Pi] = count == k;
+    satisfiers[Pi] = count >= k;
 }
 
 int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {

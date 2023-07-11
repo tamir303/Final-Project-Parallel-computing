@@ -9,8 +9,11 @@ build:
 clean:
 	rm -f *.o ./mpiCudaOpemMP
 
-run:
-	mpiexec -np 2 ./mpiCudaOpemMP input.txt
+par:
+	mpiexec -np 2 ./mpiCudaOpemMP input.txt "par"
+
+seq:
+	mpiexec -np 1 ./mpiCudaOpemMP input.txt "seq"
 
 runOn2:
 	mpiexec -np 2 -machinefile  mf  -map-by  node  ./mpiCudaOpemMP
