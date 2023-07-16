@@ -42,7 +42,7 @@ void calcCordsSequential(Cord *cords, Info *info)
 int findProximityCriteriaSequential(Cord *src, double *dest, Info *info)
 {
     int count_satisfy = 0;
-    for (int tCount = 0; tCount <= info->tCount; tCount++)
+    for (int tCount = 0; tCount < info->tCount; tCount++)
     {
         double threePoints[4] = {0};
         int offset = tCount * info->N, count_in_distance = 0, count_group = 1;

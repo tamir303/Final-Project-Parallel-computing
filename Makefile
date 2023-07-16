@@ -11,7 +11,7 @@ clean:
 	rm -f *.o ./mpiCudaOpemMP
 
 par:
-	mpiexec -np 2 ./mpiCudaOpemMP input.txt "par"
+	mpiexec -np 3 ./mpiCudaOpemMP input.txt "par"
 
 seq:
 	mpiexec -np 1 ./mpiCudaOpemMP input.txt "seq"
