@@ -15,27 +15,32 @@ __device__ double calcY(double x, double a, double b) {
  *
  * @param cords         Pointer to an array of Cord objects representing the coordinates (x and y) of points at different times.
  */
-__global__ void calcCords(Cord* cords) {
+__global__ void calcCords(Cord* cords, int pSize) {
     // Get the indices of the current thread and the total number of threads
-    int pIndex =  threadIdx.x;
     int tCount = blockIdx.x;
-    int offset = blockDim.x;
+    int offset = pSize * tCount;
+    int start = threadIdx.x * (pSize / blockDim.x);
+    int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
 
-    Point p = cords[pIndex + tCount* offset].point;
-    double t = cords[pIndex + tCount* offset].t;
+    Point p;
+    double t, xCord;
+    for (int i = start; i < end; i++) {
+        p = cords[i + offset].point;
+        t = cords[i + offset].t;
 
-    // Calculate the x coordinate using the user-defined function
-    double xCord = cords[pIndex + tCount * offset].x = calcX(p.x1, p.x2, t);
-    
-    // Calculate the y coordinate using the user-defined function
-    cords[pIndex + tCount * offset].y = calcY(xCord, p.a, p.b);
+        // Calculate the x coordinate using the user-defined function
+        xCord = cords[i + offset].x = calcX(p.x1, p.x2, t);
+
+        // Calculate the y coordinate using the user-defined function
+        cords[i + offset].y = calcY(xCord, p.a, p.b);
+    }
 }
 
 int calcCoordinates(Cord* cords, int pSize, int cSize) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t c_tSize = cSize * pSize * sizeof(Cord);
-    int thread_num = pSize;
+    int thread_num = 100;
     int block_num = cSize;
 
     // Allocate memory on GPU to copy the data from the host
@@ -53,7 +58,7 @@ int calcCoordinates(Cord* cords, int pSize, int cSize) {
         exit(EXIT_FAILURE);
     }
 
-    calcCords<<<block_num, thread_num>>>(c_A);
+    calcCords<<<block_num, thread_num>>>(c_A, pSize);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
@@ -90,21 +95,25 @@ __device__ int arePointsInDistance(double x1, double y1, double x2, double y2, d
  *
  * @param cords         Pointer to an array of Cord objects representing the coordinates (x and y) of points at different times.
  */
-__global__ void countPointsInDistance(Cord* cords, int* satisfiers, double distance, int k) {
+__global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, double distance, int k) {
     // Get the indices of the current thread and the total number of threads
-    int Pi =  threadIdx.x;
-    int numOfPoints = blockDim.x;
-    int count = 0;
+    int Pi, Pj, count;
+    int start = threadIdx.x * (pSize / blockDim.x);
+    int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
 
-    for (int Pj = 0; Pj < numOfPoints && count < k ; Pj++) {
-        if (Pi != Pj) {
-            Cord PiCords = cords[Pi];
-            Cord PjCords = cords[Pj];
-            count += arePointsInDistance(PiCords.x, PiCords.y, PjCords.x, PjCords.y, distance);
+    for (Pi = start; Pi < end; Pi++) {
+        count = 0;
+        for (Pj = 0; Pj < pSize && count < k ; Pj++) {
+            if (Pi != Pj) {
+                Cord PiCords = cords[Pi];
+                Cord PjCords = cords[Pj];
+                count += arePointsInDistance(PiCords.x, PiCords.y, PjCords.x, PjCords.y, distance);
+            }
         }
-    }
 
-    satisfiers[Pi] = count >= k;
+        satisfiers[Pi] = count >= k;
+        if (satisfiers[Pi]) printf("Point: %d\n", Pi);
+    }
 }
 
 int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
@@ -113,7 +122,7 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     size_t c_tSize =  pSize * sizeof(Cord);
     size_t s_tSize = pSize * sizeof(int);
     int* satisfiers;
-    int thread_num = pSize;
+    int thread_num = 100;
 
     satisfiers = (int*) malloc(s_tSize);
 
@@ -140,10 +149,10 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
         exit(EXIT_FAILURE);
     }
 
-    countPointsInDistance<<<1, thread_num>>>(c_A, s_A, distance, k);
+    countPointsInDistance<<<1, thread_num>>>(c_A, s_A, pSize, distance, k);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to launch calcCords kernel -  %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to launch countPointsInDistance kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 

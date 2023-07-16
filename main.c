@@ -18,23 +18,19 @@ The results is send from the process 1 to the process 0, which perform the test 
 
 int main(int argc, char *argv[])
 {
-   double exec_time;
-
    if (strcmp(argv[2], "par") == 0)
-      parallel(argc, argv, &exec_time);
+      parallel(argc, argv);
    else if (strcmp(argv[2], "seq") == 0)
-      sequential(argc, argv, &exec_time);
+      sequential(argc, argv);
    else
       printf("\nUndefined Case, seconds argument has to be 'seq' or 'par'\n");
-
-   printf("Execution time: %.6f seconds\n", exec_time);
 
    return 0;
 }
 
 // ########################################################## PARALLEL ##################################################
 
-void parallel(int argc, char *argv[], double *exec_time)
+void parallel(int argc, char *argv[])
 {
    int size, rank;
    MPI_Status status;
@@ -54,6 +50,7 @@ void parallel(int argc, char *argv[], double *exec_time)
 
    clock_t start, end;
    start = clock();
+   double exec_time;
 
    if (rank == 0)
    {
@@ -67,24 +64,22 @@ void parallel(int argc, char *argv[], double *exec_time)
       MPI_Recv(info, 1, MPI_INFO, 0, 0, MPI_COMM_WORLD, &status);
    }
 
-   int chunkSize = rank == size - 1 ? (int)ceil(info->tCount / size) : info->tCount / size;
-   cords = (Cord *)malloc(sizeof(Cord) * chunkSize * info->N);
+   int chunkSize = rank == size - 1 ? (int) ceil(info->tCount / size) : info->tCount / size;
+   cords = (Cord *) malloc(sizeof(Cord) * chunkSize * info->N);
    MPI_Scatter(data, chunkSize * info->N, MPI_CORD, cords, chunkSize * info->N, MPI_CORD, 0, MPI_COMM_WORLD);
 
    if (calcCoordinates(cords, info->N, chunkSize) != 0)
       MPI_Abort(MPI_COMM_WORLD, __LINE__);
-
-   MPI_Barrier(MPI_COMM_WORLD);
 
    // Assuming cords is populated with data
    // Divide the data into chunks
 
    // OpenMP parallel region
 
-   double *local_results = (double *)malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
+   double *local_results = (double *) malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
    int local_counter = 0, global_counter = 0;
 
-#pragma omp parallel num_threads(chunkSize)
+   #pragma omp parallel num_threads(chunkSize)
    {
       // Iterate over data chunk assigned to each thread
       int count_group = 1;
@@ -96,21 +91,21 @@ void parallel(int argc, char *argv[], double *exec_time)
       // Iterate over each region of points per t
       int *satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
 
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int i = 0; i < info->N; i++)
          if (satisfiers[i])
-#pragma omp critical
-         {
-            if (count_group < PCT + 1)
+            #pragma omp critical
             {
-               threePoints[count_group] = (double)tCountRegion[i].point.id;
-               count_group++;
+               if (count_group < PCT + 1)
+               {
+                  threePoints[count_group] = (double)tCountRegion[i].point.id;
+                  count_group++;
+               }
             }
-         }
 
       if (count_group == PCT + 1)
       {
-#pragma omp critical
+         #pragma omp critical
          {
             memcpy(&local_results[local_counter * (PCT + 1)], threePoints, sizeof(threePoints));
             local_counter++;
@@ -128,7 +123,7 @@ void parallel(int argc, char *argv[], double *exec_time)
    MPI_Reduce(&local_counter, &global_counter, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
    end = clock(); 
-   *exec_time = (double) (end - start) / CLOCKS_PER_SEC;
+   exec_time = (double) (end - start) / CLOCKS_PER_SEC;
 
    if (rank == 0)
    {
@@ -143,6 +138,8 @@ void parallel(int argc, char *argv[], double *exec_time)
                    (int)global_results[p2], (int)global_results[p3], global_results[t]);
          }
       }
+
+      printf("Execution time: %.6f seconds\n", exec_time);
    }
 
    MPI_Type_free(&MPI_INFO);
@@ -152,7 +149,7 @@ void parallel(int argc, char *argv[], double *exec_time)
 
 // ########################################################## SEQUENTIAL ##################################################
 
-void sequential(int argc, char *argv[], double *exec_time)
+void sequential(int argc, char *argv[])
 {
    Info *info = NULL;
    Point *points = NULL;
@@ -162,6 +159,7 @@ void sequential(int argc, char *argv[], double *exec_time)
 
    clock_t start, end;
    start = clock();
+   double exec_time;
 
    // Prepare Cords Array
    for (int tCount = 0; tCount <= info->tCount; tCount++)
@@ -229,7 +227,7 @@ void sequential(int argc, char *argv[], double *exec_time)
    }
 
    end = clock(); 
-   *exec_time = (double) (end - start) / CLOCKS_PER_SEC;
+   exec_time = (double) (end - start) / CLOCKS_PER_SEC;
 
    if (count_satisfy == 0)
       printf("There were no 3 points found for any t\n");
@@ -242,4 +240,6 @@ void sequential(int argc, char *argv[], double *exec_time)
                 (int)results[p2], (int)results[p3], results[t]);
       }
    }
+
+   printf("Execution time: %.6f seconds\n", exec_time);
 }

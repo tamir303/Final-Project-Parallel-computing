@@ -35,9 +35,11 @@ Point *readPointArrayFromFile(char *fileName, Info **info)
             printf("Failed to read point {%d} cFunctions.c line {%d}\n", count, __LINE__);
             exit(-1);
         }
-        // printf("\nPoint %d x1: %lf x2: %lf a: %lf b: %lf",point[count].id, point[count].x1, point[count].x2, point[count].a, point[count].b);
         count++;
     }
+
+    printf("\nN: %d\nK: %d\nD: %.3f\nTcount: %d\n", (*info)->N, (*info)->K, (*info)->D, (*info)->tCount);
+
     return point;
 }
 
@@ -45,7 +47,7 @@ Point *readPointArrayFromFile(char *fileName, Info **info)
 Cord *initCordsArray(Info *info, Point *points)
 {
     Cord *cords = (Cord *)malloc(sizeof(Cord) * (info->tCount + 1) * info->N);
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int tCount = 0; tCount <= info->tCount; tCount++)
     {
         double t = 2.0 * tCount / (info->tCount) - 1.0;
