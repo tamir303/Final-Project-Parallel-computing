@@ -112,7 +112,6 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
         }
 
         satisfiers[Pi] = count >= k;
-        if (satisfiers[Pi]) printf("Point: %d\n", Pi);
     }
 }
 

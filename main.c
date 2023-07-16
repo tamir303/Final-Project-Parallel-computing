@@ -208,7 +208,7 @@ void sequential(int argc, char *argv[])
             }
          }
 
-         if (count_group >= info->K)
+         if (count_in_distance >= info->K)
          {
             threePoints[count_group] = (double)tCountRegion[Pi].point.id;
             count_group++;
