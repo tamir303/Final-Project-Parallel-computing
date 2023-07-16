@@ -4,10 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "parallelFunctions.h"
+#include "general.h"
 
-Cord *initCordsArray(Info *info, Point *points)
+Cord *initCordsArrayParallel(Info *info, Point *points)
 {
-    Cord *cords = (Cord *)malloc(sizeof(Cord) * (info->tCount + 1) * info->N);
+    Cord *cords = (Cord *) allocateArray((info->tCount + 1) * info->N, sizeof(Cord));
     #pragma omp parallel for
     for (int tCount = 0; tCount <= info->tCount; tCount++)
     {
@@ -22,7 +23,7 @@ Cord *initCordsArray(Info *info, Point *points)
     return cords;
 }
 
-int findProximityCriteria(Cord *src, double *dest, Info* info, int chunkSize)
+int findProximityCriteriaParallel(Cord *src, double *dest, Info* info, int chunkSize)
 {
     int local_counter = 0;
     #pragma omp parallel num_threads(chunkSize)

@@ -6,7 +6,7 @@
 Point *readPointArrayFromFile(char *fileName, Info **info)
 {
     FILE *file = fopen(fileName, "r");
-    *info = (Info *)malloc(sizeof(Info));
+    *info = (Info *) malloc(sizeof(Info));
 
     if (!info)
     {
@@ -55,4 +55,14 @@ void printResults(double *results, int counter) {
                     (int)results[p2], (int)results[p3], results[t]);
         }
     }
+}
+
+void* allocateArray(size_t numElements, size_t elementSize) {
+    void* array = malloc(numElements * elementSize);
+    if (array == NULL) {
+        fprintf(stderr, "Failed to allocate memory for array\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    return array;
 }

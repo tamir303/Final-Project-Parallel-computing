@@ -2,5 +2,5 @@
 
 #include "myProto.h"
 
-int findProximityCriteria(Cord* src, double *dest, Info* info, int chunkSize);
-Cord *initCordsArray(Info *info, Point *points);
+int findProximityCriteriaParallel(Cord* src, double *dest, Info* info, int chunkSize);
+Cord *initCordsArrayParallel(Info *info, Point *points);

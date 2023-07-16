@@ -6,6 +6,7 @@
         "string_view": "c",
         "mathcalc.h": "c",
         "stdio.h": "c",
-        "parallelfunctions.h": "c"
+        "parallelfunctions.h": "c",
+        "sequentialfunctions.h": "c"
     }
 }

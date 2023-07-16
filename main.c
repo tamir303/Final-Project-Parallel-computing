@@ -7,6 +7,7 @@
 #include <time.h>
 #include "myProto.h"
 #include "parallelFunctions.h"
+#include "sequentialFunctions.h"
 #include "createMPIStruct.h"
 #include "general.h"
 
@@ -55,17 +56,17 @@ void parallel(int argc, char *argv[])
    if (rank == 0)
    {
       points = readPointArrayFromFile(argv[1], &info);
-      data = initCordsArray(info, points);
+      data = initCordsArrayParallel(info, points);
       MPI_Send(info, 1, MPI_INFO, 1, 0, MPI_COMM_WORLD);
    }
    else
    {
-      info = (Info *)malloc(sizeof(Info));
+      info = (Info *) allocateArray(1, sizeof(Info));
       MPI_Recv(info, 1, MPI_INFO, 0, 0, MPI_COMM_WORLD, &status);
    }
 
    int chunkSize = rank == size - 1 ? (int)ceil(info->tCount / size) : info->tCount / size;
-   cords = (Cord *)malloc(sizeof(Cord) * chunkSize * info->N);
+   cords = (Cord *) allocateArray(chunkSize * info->N, sizeof(Cord));
    MPI_Scatter(data, chunkSize * info->N, MPI_CORD, cords, chunkSize * info->N, MPI_CORD, 0, MPI_COMM_WORLD);
 
    if (calcCoordinates(cords, info->N, chunkSize) != 0)
@@ -75,16 +76,15 @@ void parallel(int argc, char *argv[])
    // Divide the data into chunks
 
    // OpenMP parallel region
-
-   double *local_results = (double *)malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
+   double *local_results = (double *) allocateArray(chunkSize * (PCT + 1), sizeof(double)), *global_results = NULL;
    int local_counter, global_counter = 0;
 
-   local_counter = findProximityCriteria(cords, local_results, info, chunkSize);
+   local_counter = findProximityCriteriaParallel(cords, local_results, info, chunkSize);
 
    MPI_Barrier(MPI_COMM_WORLD);
 
    if (rank == 0)
-      global_results = (double *)malloc(info->tCount * (PCT + 1) * sizeof(double));
+      global_results = (double *) allocateArray(info->tCount * (PCT + 1), sizeof(double));
 
    // Communicate results to the master process
    MPI_Gather(local_results, local_counter * (PCT + 1), MPI_DOUBLE, global_results, local_counter * (PCT + 1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -110,93 +110,30 @@ void sequential(int argc, char *argv[])
 {
    Info *info = NULL;
    Point *points = NULL;
+   Cord *cords = NULL;
 
    points = readPointArrayFromFile(argv[1], &info);
-   Cord *cords = (Cord *)malloc(sizeof(Cord) * (info->tCount + 1) * info->N);
 
    clock_t start, end;
    start = clock();
    double exec_time;
 
    // Prepare Cords Array
-   for (int tCount = 0; tCount <= info->tCount; tCount++)
-   {
-      double t = 2.0 * tCount / (info->tCount) - 1.0;
-      for (int point = 0; point < info->N; point++)
-      {
-         cords[point + tCount * info->N].point = points[point];
-         cords[point + tCount * info->N].t = t;
-      }
-   }
+   cords = initCordsArraySequential(info, points);
 
    // Calculate each Point Cord's per t
-   for (int tCount = 0; tCount <= info->tCount; tCount++)
-   {
-      int offset = tCount * info->N;
-      for (int p = 0; p < info->N; p++)
-      {
-         double x1 = cords[offset + p].point.x1, x2 = cords[offset + p].point.x2, t = cords[offset + p].t;
-         double a = cords[offset + p].point.a, b = cords[offset + p].point.b;
-         cords[offset + p].x = ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
-         cords[offset + p].y = a * cords[offset + p].x + b;
-      }
-   }
+   calcCordsSequential(cords, info);
 
    // Find Points that satisfy Proximity Criteria
-   int count_satisfy = 0;
-   double *results = (double *)malloc(4 * (info->tCount + 1) * sizeof(double));
-   for (int tCount = 0; tCount <= info->tCount; tCount++)
-   {
-      double threePoints[4] = {0};
-      int offset = tCount * info->N, count_in_distance = 0, count_group = 1;
-      Cord *tCountRegion = cords + offset;
-      threePoints[0] = tCountRegion[0].t;
+   int count_satisfy;
+   double *results = (double *) allocateArray(4 * (info->tCount + 1), sizeof(double));
 
-      for (int Pi = 0; Pi < info->N && count_group < 4; Pi++)
-      {
-         for (int Pj = 0; Pj < info->N && count_in_distance < info->K; Pj++)
-         {
-            if (Pi != Pj)
-            {
-               double dx = tCountRegion[Pj].x - tCountRegion[Pi].x;
-               double dy = tCountRegion[Pj].y - tCountRegion[Pi].y;
-               if (sqrt(dx * dx + dy * dy) < info->D)
-                  count_in_distance++;
-            }
-         }
-
-         if (count_in_distance >= info->K)
-         {
-            threePoints[count_group] = (double)tCountRegion[Pi].point.id;
-            count_group++;
-         }
-
-         count_in_distance = 0;
-      }
-
-      if (count_group == 4)
-      {
-         memcpy(&results[count_satisfy * 4], threePoints, sizeof(threePoints));
-         count_satisfy++;
-      }
-
-      count_group = 0;
-   }
+   count_satisfy = findProximityCriteriaSequential(cords, results, info);
 
    end = clock();
    exec_time = (double)(end - start) / CLOCKS_PER_SEC;
 
-   if (count_satisfy == 0)
-      printf("There were no 3 points found for any t\n");
-   else
-   {
-      for (int i = 0; i < count_satisfy; i++)
-      {
-         int p1 = i * 4 + 1, p2 = i * 4 + 2, p3 = i * 4 + 3, t = i * 4;
-         printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int)results[p1],
-                (int)results[p2], (int)results[p3], results[t]);
-      }
-   }
+   printResults(results, count_satisfy);
 
    printf("Execution time: %.6f seconds\n", exec_time);
 }
