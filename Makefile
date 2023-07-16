@@ -1,9 +1,10 @@
 build:
 	mpicxx -fopenmp -c main.c -o main.o
 	mpicxx -fopenmp -c createMPIStruct.c -o createMPIStruct.o
-	mpicxx -fopenmp -c cFunctions.c -o cFunctions.o
+	mpicxx -fopenmp -c general.c -o general.o
+	mpicxx -fopenmp -c parallelFunctions.c -o parallelFunctions.o
 	nvcc -I./Common  -gencode arch=compute_61,code=sm_61 -c cudaFunctions.cu -o cudaFunctions.o
-	mpicxx -fopenmp -o mpiCudaOpemMP  main.o cFunctions.o cudaFunctions.o createMPIStruct.o -L/usr/local/cuda/lib -L/usr/local/cuda/lib64 -lcudart
+	mpicxx -fopenmp -o mpiCudaOpemMP  main.o general.o cudaFunctions.o createMPIStruct.o parallelFunctions.o -L/usr/local/cuda/lib -L/usr/local/cuda/lib64 -lcudart
 	
 
 clean:

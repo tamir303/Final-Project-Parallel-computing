@@ -43,20 +43,16 @@ Point *readPointArrayFromFile(char *fileName, Info **info)
     return point;
 }
 
-
-Cord *initCordsArray(Info *info, Point *points)
-{
-    Cord *cords = (Cord *)malloc(sizeof(Cord) * (info->tCount + 1) * info->N);
-    #pragma omp parallel for
-    for (int tCount = 0; tCount <= info->tCount; tCount++)
+void printResults(double *results, int counter) {
+    if (counter == 0)
+        printf("There were no 3 points found for any t\n");
+    else
     {
-        double t = 2.0 * tCount / (info->tCount) - 1.0;
-        for (int point = 0; point < info->N; point++)
+        for (int i = 0; i < counter; i++)
         {
-            cords[point + tCount * info->N].point = points[point];
-            cords[point + tCount * info->N].t = t;
+            int p1 = i * 4 + 1, p2 = i * 4 + 2, p3 = i * 4 + 3, t = i * 4;
+            printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int)results[p1],
+                    (int)results[p2], (int)results[p3], results[t]);
         }
     }
-
-    return cords;
 }

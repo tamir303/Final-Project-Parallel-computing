@@ -6,7 +6,9 @@
 #include <math.h>
 #include <time.h>
 #include "myProto.h"
+#include "parallelFunctions.h"
 #include "createMPIStruct.h"
+#include "general.h"
 
 /*
 Simple MPI+OpenMP+CUDA Integration example
@@ -41,10 +43,8 @@ void parallel(int argc, char *argv[])
 
    Info *info = NULL;
    Point *points = NULL;
-   Cord *data = NULL;
-   Cord *cords = NULL;
-   MPI_Datatype MPI_INFO = createInfoStruct();
-   MPI_Datatype MPI_CORD = createCordStruct();
+   Cord *data = NULL, *cords = NULL;
+   MPI_Datatype MPI_INFO = createInfoStruct(), MPI_CORD = createCordStruct();
 
    // Read data and exchange information between processes
 
@@ -64,8 +64,8 @@ void parallel(int argc, char *argv[])
       MPI_Recv(info, 1, MPI_INFO, 0, 0, MPI_COMM_WORLD, &status);
    }
 
-   int chunkSize = rank == size - 1 ? (int) ceil(info->tCount / size) : info->tCount / size;
-   cords = (Cord *) malloc(sizeof(Cord) * chunkSize * info->N);
+   int chunkSize = rank == size - 1 ? (int)ceil(info->tCount / size) : info->tCount / size;
+   cords = (Cord *)malloc(sizeof(Cord) * chunkSize * info->N);
    MPI_Scatter(data, chunkSize * info->N, MPI_CORD, cords, chunkSize * info->N, MPI_CORD, 0, MPI_COMM_WORLD);
 
    if (calcCoordinates(cords, info->N, chunkSize) != 0)
@@ -76,42 +76,10 @@ void parallel(int argc, char *argv[])
 
    // OpenMP parallel region
 
-   double *local_results = (double *) malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
-   int local_counter = 0, global_counter = 0;
+   double *local_results = (double *)malloc(chunkSize * (PCT + 1) * sizeof(double)), *global_results = NULL;
+   int local_counter, global_counter = 0;
 
-   #pragma omp parallel num_threads(chunkSize)
-   {
-      // Iterate over data chunk assigned to each thread
-      int count_group = 1;
-      int offset = omp_get_thread_num() * info->N;
-      double threePoints[PCT + 1] = {0};
-      Cord *tCountRegion = cords + offset;
-      threePoints[0] = tCountRegion[0].t;
-
-      // Iterate over each region of points per t
-      int *satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
-
-      #pragma omp parallel for
-      for (int i = 0; i < info->N; i++)
-         if (satisfiers[i])
-            #pragma omp critical
-            {
-               if (count_group < PCT + 1)
-               {
-                  threePoints[count_group] = (double)tCountRegion[i].point.id;
-                  count_group++;
-               }
-            }
-
-      if (count_group == PCT + 1)
-      {
-         #pragma omp critical
-         {
-            memcpy(&local_results[local_counter * (PCT + 1)], threePoints, sizeof(threePoints));
-            local_counter++;
-         }
-      }
-   }
+   local_counter = findProximityCriteria(cords, local_results, info, chunkSize);
 
    MPI_Barrier(MPI_COMM_WORLD);
 
@@ -122,23 +90,12 @@ void parallel(int argc, char *argv[])
    MPI_Gather(local_results, local_counter * (PCT + 1), MPI_DOUBLE, global_results, local_counter * (PCT + 1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
    MPI_Reduce(&local_counter, &global_counter, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-   end = clock(); 
-   exec_time = (double) (end - start) / CLOCKS_PER_SEC;
+   end = clock();
+   exec_time = (double)(end - start) / CLOCKS_PER_SEC;
 
    if (rank == 0)
    {
-      if (global_counter == 0)
-         printf("There were no 3 points found for any t\n");
-      else
-      {
-         for (int i = 0; i < global_counter; i++)
-         {
-            int p1 = i * 4 + 1, p2 = i * 4 + 2, p3 = i * 4 + 3, t = i * 4;
-            printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int)global_results[p1],
-                   (int)global_results[p2], (int)global_results[p3], global_results[t]);
-         }
-      }
-
+      printResults(global_results, global_counter);
       printf("Execution time: %.6f seconds\n", exec_time);
    }
 
@@ -226,8 +183,8 @@ void sequential(int argc, char *argv[])
       count_group = 0;
    }
 
-   end = clock(); 
-   exec_time = (double) (end - start) / CLOCKS_PER_SEC;
+   end = clock();
+   exec_time = (double)(end - start) / CLOCKS_PER_SEC;
 
    if (count_satisfy == 0)
       printf("There were no 3 points found for any t\n");

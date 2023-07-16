@@ -20,9 +20,10 @@ typedef struct Cord {
     double t;
 } Cord;
 
-Point* readPointArrayFromFile(char* fileName, Info** info);
-Cord* initCordsArray(Info* info, Point* points);
+// Run Options
 void sequential(int argc, char *argv[]);
 void parallel(int argc, char *argv[]);
+
+// CUDA Functions
 int calcCoordinates(Cord* cords, int pSize, int cSize);
 int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k);
