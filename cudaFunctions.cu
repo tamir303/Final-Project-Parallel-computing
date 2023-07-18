@@ -115,6 +115,23 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
     }
 }
 
+__global__ void findFirstThreeOnes(const int* satisfiers, int* output, int* index, int pSize) {
+    int start = threadIdx.x * (pSize / blockDim.x);
+    int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
+    int count = 0;
+
+    for (int i = start; i < end; i++) {
+        if (satisfiers[i]) {
+            int currIndex = atomicAdd(index, 1);
+            if (currIndex < 3) {
+                output[currIndex] = i;
+            } else if (currIndex == 3) {
+                atomicMin(index, 3);
+            }
+        }
+    }
+}
+
 int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
@@ -122,8 +139,6 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     size_t s_tSize = pSize * sizeof(int);
     int* satisfiers;
     int thread_num = 100;
-
-    satisfiers = (int*) malloc(s_tSize);
 
     // Allocate memory on GPU to copy the data from the host
     int *s_A;
@@ -154,6 +169,18 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
         fprintf(stderr, "Failed to launch countPointsInDistance kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+
+    int* d_output, *output;
+    int* d_index, index;
+
+    cudaMalloc((void**)&d_output, 3 * sizeof(int));
+    cudaMalloc((void**)&d_index, sizeof(int));
+
+    cudaMemcpy(d_output, output, 3 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_index, &index, sizeof(int), cudaMemcpyHostToDevice);
+
+
+    findFirstThreeOnes<<<1, thread_num>>>(s_A, d_output, d_index, pSize);
 
     // Copy the  result from GPU to the host memory.
     err = cudaMemcpy(satisfiers, s_A, s_tSize, cudaMemcpyDeviceToHost);
