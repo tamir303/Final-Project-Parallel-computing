@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include "myProto.h"
+#include "general.h"
 
 __device__ double calcX(double x1, double x2, double t) {
     return ((x2 - x1) / 2) * sin(t * PI) + ((x2 + x1) / 2);
@@ -40,7 +41,7 @@ int calcCoordinates(Cord* cords, int pSize, int cSize) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t c_tSize = cSize * pSize * sizeof(Cord);
-    int thread_num = 100;
+    int thread_num = 500;
     int block_num = cSize;
 
     // Allocate memory on GPU to copy the data from the host
@@ -118,16 +119,12 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
 __global__ void findFirstThreeOnes(const int* satisfiers, int* output, int* index, int pSize) {
     int start = threadIdx.x * (pSize / blockDim.x);
     int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
-    int count = 0;
 
-    for (int i = start; i < end; i++) {
+    for (int i = start; i < end && *index < 3; i++) {
         if (satisfiers[i]) {
             int currIndex = atomicAdd(index, 1);
-            if (currIndex < 3) {
+            if (currIndex < 3)
                 output[currIndex] = i;
-            } else if (currIndex == 3) {
-                atomicMin(index, 3);
-            }
         }
     }
 }
@@ -137,8 +134,7 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     cudaError_t err = cudaSuccess;
     size_t c_tSize =  pSize * sizeof(Cord);
     size_t s_tSize = pSize * sizeof(int);
-    int* satisfiers;
-    int thread_num = 100;
+    int thread_num = 500;
 
     // Allocate memory on GPU to copy the data from the host
     int *s_A;
@@ -170,36 +166,66 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
         exit(EXIT_FAILURE);
     }
 
-    int* d_output, *output;
-    int* d_index, index;
+    int* d_output, *output = NULL;
+    int* d_index, *index = (int*) allocateArray(1, sizeof(int));
 
-    cudaMalloc((void**)&d_output, 3 * sizeof(int));
-    cudaMalloc((void**)&d_index, sizeof(int));
+    err = cudaMalloc((void**)&d_output, 3 * sizeof(int));
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to allocate d_output - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
 
-    cudaMemcpy(d_output, output, 3 * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_index, &index, sizeof(int), cudaMemcpyHostToDevice);
-
+    err = cudaMalloc((void**)&d_index, sizeof(int));
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to allocate d_index - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
 
     findFirstThreeOnes<<<1, thread_num>>>(s_A, d_output, d_index, pSize);
-
-    // Copy the  result from GPU to the host memory.
-    err = cudaMemcpy(satisfiers, s_A, s_tSize, cudaMemcpyDeviceToHost);
+    err = cudaGetLastError();
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy result array from s_A to satisfiers -%s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to launch findFirstThreeOnes kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
+    }
+
+    err = cudaMemcpy(index, d_index, sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to copy data from d_index to index -  %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    if (*index == 3) {
+        output = (int*) allocateArray(4, sizeof(int));
+        err = cudaMemcpy(output, d_output, 3 * sizeof(int), cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess) {
+            fprintf(stderr, "Failed to copy data from d_output to output -  %s\n", cudaGetErrorString(err));
+            exit(EXIT_FAILURE);
+        }
     }
 
     // Free allocated memory on GPU
     if (cudaFree(c_A) != cudaSuccess) {
-        fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to free c_A- %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
     // Free allocated memory on GPU
     if (cudaFree(s_A) != cudaSuccess) {
-        fprintf(stderr, "Failed to free device data - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to free s_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    return satisfiers;
+    // Free allocated memory on GPU
+    if (cudaFree(d_output) != cudaSuccess) {
+        fprintf(stderr, "Failed to free d_output - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    // Free allocated memory on GPU
+    if (cudaFree(d_index) != cudaSuccess) {
+        fprintf(stderr, "Failed to free d_index- %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    return output;
 }

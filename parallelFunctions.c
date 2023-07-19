@@ -29,37 +29,22 @@ Cord *initCordsArrayParallel(Info *info, Point *points)
 int findProximityCriteriaParallel(Cord *src, double *dest, Info* info, int chunkSize)
 {
     int local_counter = 0;
-    #pragma omp parallel num_threads(chunkSize)
+    #pragma omp parallel for num_threads(chunkSize) reduction(+:local_counter)
+    for (int i = 0; i < chunkSize; i++)
     {
         // Iterate over data chunk assigned to each thread
-        int count_group = 1;
         int offset = omp_get_thread_num() * info->N;
-        double threePoints[PCT + 1] = {0};
         Cord *tCountRegion = src + offset;
-        threePoints[0] = tCountRegion[0].t;
 
         // Iterate over each region of points per t
         int *satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
-
-        for (int i = 0; i < info->N; i++)
-            if (satisfiers[i])
-                if (count_group < PCT + 1)
-                {
-                    printf("%d\n", omp_get_thread_num());
-                    threePoints[count_group] = (double)tCountRegion[i].point.id;
-                    count_group++;
-                }
-
-        if (count_group == PCT + 1)
-        {
-            #pragma omp critical
-            {
-                memcpy(&dest[local_counter * (PCT + 1)], threePoints, sizeof(threePoints));
-                local_counter++;
-            }
+        if (satisfiers != NULL) {
+            satisfiers[PCT] = tCountRegion[0].t;
+            printf("%d %d %d\n", satisfiers[0], satisfiers[1], satisfiers[2]);
+            memcpy(&dest[omp_get_thread_num() * (PCT + 1)], satisfiers, sizeof(int) * (PCT + 1));
+            local_counter++;
         }
     }
-    printf("goodbye\n");
 
    return local_counter;
 }
