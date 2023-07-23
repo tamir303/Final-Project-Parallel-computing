@@ -121,7 +121,7 @@ __global__ void findFirstThreeOnes(const int* satisfiers, int* results, int* out
 
     __shared__ int counter;
     if (threadIdx.x == 0)
-        counter = 0;
+        counter = -1;
 
     __syncthreads();
 
@@ -135,7 +135,7 @@ __global__ void findFirstThreeOnes(const int* satisfiers, int* results, int* out
             if (currIndex < 3) {
                 atomicExch(&output[blockIdx.x * 3 + currIndex], i % pSize);
             }
-            else if (currIndex >= 3) {
+            else if (currIndex + 1 >= 3) {
                 atomicExch(&results[blockIdx.x], 1);
                 break;
             }

@@ -77,7 +77,7 @@ int findProximityCriteriaSequential(Cord *src, double *dest, Info *info)
             count_satisfy++;
         }
 
-        count_group = 0;
+        count_group = 1;
     }
 
     return count_satisfy;
