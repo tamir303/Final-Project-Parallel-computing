@@ -99,8 +99,9 @@ __device__ int arePointsInDistance(double x1, double y1, double x2, double y2, d
 __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, double distance, int k) {
     // Get the indices of the current thread and the total number of threads
     int Pi, Pj, count;
-    int start = threadIdx.x * (pSize / blockDim.x);
-    int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
+    int tOffset = pSize * blockIdx.x;
+    int start = tOffset + threadIdx.x * (pSize / blockDim.x);
+    int end = blockDim.x - 1 == threadIdx.x ? tOffset + pSize : start + pSize / blockDim.x;
 
     for (Pi = start; Pi < end; Pi++) {
         count = 0;
@@ -116,25 +117,41 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
     }
 }
 
-__global__ void findFirstThreeOnes(const int* satisfiers, int* output, int* index, int pSize) {
-    int start = threadIdx.x * (pSize / blockDim.x);
-    int end = blockDim.x - 1 == threadIdx.x ? pSize : start + pSize / blockDim.x;
+__global__ void findFirstThreeOnes(const int* satisfiers, int* results, int* output, int pSize) {
 
-    for (int i = start; i < end && *index < 3; i++) {
+    __shared__ int counter;
+    if (threadIdx.x == 0)
+        counter = 0;
+
+    __syncthreads();
+
+    int tOffset = pSize * blockIdx.x;
+    int start = tOffset + threadIdx.x * (pSize / blockDim.x);
+    int end = blockDim.x - 1 == threadIdx.x ? tOffset + pSize : start + pSize / blockDim.x;
+
+    for (int i = start; i < end; i++) {
         if (satisfiers[i]) {
-            int currIndex = atomicAdd(index, 1);
-            if (currIndex < 3)
-                output[currIndex] = i;
+            int currIndex = atomicAdd(&counter, 1);
+            if (currIndex < 3) {
+                atomicExch(&output[blockIdx.x * 3 + currIndex], i % pSize);
+            }
+            else if (currIndex >= 3) {
+                atomicExch(&results[blockIdx.x], 1);
+                break;
+            }
         }
     }
+
+    __syncthreads();
 }
 
-int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
+int* calcProximityCriteria(Cord* cords, int tCount, double distance, int pSize, int k, int* output) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
-    size_t c_tSize =  pSize * sizeof(Cord);
-    size_t s_tSize = pSize * sizeof(int);
-    int thread_num = 500;
+    size_t c_tSize =  pSize * tCount * sizeof(Cord);
+    size_t s_tSize = pSize * tCount * sizeof(int);
+    int thread_num = 100;
+    int block_num = tCount;
 
     // Allocate memory on GPU to copy the data from the host
     int *s_A;
@@ -159,49 +176,57 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
         exit(EXIT_FAILURE);
     }
 
-    countPointsInDistance<<<1, thread_num>>>(c_A, s_A, pSize, distance, k);
+    countPointsInDistance<<<block_num, thread_num>>>(c_A, s_A, pSize, distance, k);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch countPointsInDistance kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    int* d_output, *output = NULL;
-    int* d_index, *index = (int*) allocateArray(1, sizeof(int));
+    cudaDeviceSynchronize();
 
-    err = cudaMalloc((void**)&d_output, 3 * sizeof(int));
+    int* d_output;
+    int* d_results, *results = NULL;
+
+    err = cudaMalloc((void**)&d_output, 3 * tCount * sizeof(int));
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to allocate d_output - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    err = cudaMalloc((void**)&d_index, sizeof(int));
+    err = cudaMalloc((void**)&d_results, tCount * sizeof(int));
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to allocate d_index - %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to allocate d_output - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    findFirstThreeOnes<<<1, thread_num>>>(s_A, d_output, d_index, pSize);
+
+    findFirstThreeOnes<<<block_num, thread_num>>>(s_A, d_results, d_output, pSize);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Failed to launch findFirstThreeOnes kernel -  %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    err = cudaMemcpy(index, d_index, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    // Copy data from host to the GPU memory
+    results = (int*) allocateArray(tCount, sizeof(int));
+    err = cudaMemcpy(results, d_results, tCount * sizeof(int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy data from d_index to index -  %s\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    if (*index == 3) {
-        output = (int*) allocateArray(4, sizeof(int));
-        err = cudaMemcpy(output, d_output, 3 * sizeof(int), cudaMemcpyDeviceToHost);
-        if (err != cudaSuccess) {
-            fprintf(stderr, "Failed to copy data from d_output to output -  %s\n", cudaGetErrorString(err));
-            exit(EXIT_FAILURE);
-        }
+    // Copy data from host to the GPU memory
+    err = cudaMemcpy(output, d_output, 3 * tCount * sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
     }
+
+        // for (int i = 0; i < tCount; i++)
+        // printf("%d %d %d res: %d\n", output[i * 3], output[i * 3 + 1], output[i * 3 +2], results[i]);
 
     // Free allocated memory on GPU
     if (cudaFree(c_A) != cudaSuccess) {
@@ -222,10 +247,10 @@ int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k) {
     }
 
     // Free allocated memory on GPU
-    if (cudaFree(d_index) != cudaSuccess) {
-        fprintf(stderr, "Failed to free d_index- %s\n", cudaGetErrorString(err));
+    if (cudaFree(d_results) != cudaSuccess) {
+        fprintf(stderr, "Failed to free d_output - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
-    return output;
+    return results;
 }

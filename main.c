@@ -57,10 +57,13 @@ void parallel(int argc, char *argv[])
    {
       points = readPointArrayFromFile(argv[1], &info);
       data = initCordsArrayParallel(info, points);
+      MPI_Send(info, 1, MPI_INFO, 1, 0, MPI_COMM_WORLD);
    }
    else
+   {
       info = (Info *) allocateArray(1, sizeof(Info));
-   MPI_Bcast(info, 1, MPI_INFO, 0, MPI_COMM_WORLD);
+      MPI_Recv(info, 1, MPI_INFO, 0, 0, MPI_COMM_WORLD, &status);
+   }
 
    int chunkSize = rank == size - 1 ? (int) ceil(info->tCount / size) : info->tCount / size;
    cords = (Cord *) allocateArray(chunkSize * info->N, sizeof(Cord));
@@ -96,9 +99,6 @@ void parallel(int argc, char *argv[])
       printf("Execution time: %.6f seconds\n", exec_time);
    }
 
-   free(points);
-   free(local_results);
-   free(global_results);
    MPI_Type_free(&MPI_INFO);
    MPI_Type_free(&MPI_CORD);
    MPI_Finalize();
@@ -126,7 +126,7 @@ void sequential(int argc, char *argv[])
 
    // Find Points that satisfy Proximity Criteria
    int count_satisfy;
-   double *results = (double *) allocateArray(4 * info->tCount, sizeof(double));
+   double *results = (double *) allocateArray(4 * (info->tCount + 1), sizeof(double));
 
    count_satisfy = findProximityCriteriaSequential(cords, results, info);
 
@@ -134,10 +134,6 @@ void sequential(int argc, char *argv[])
    exec_time = (double)(end - start) / CLOCKS_PER_SEC;
 
    printResults(results, count_satisfy);
-
-   free(points);
-   free(cords);
-   free(results);
 
    printf("Execution time: %.6f seconds\n", exec_time);
 }

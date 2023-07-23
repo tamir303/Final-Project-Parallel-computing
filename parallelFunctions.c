@@ -29,20 +29,23 @@ Cord *initCordsArrayParallel(Info *info, Point *points)
 int findProximityCriteriaParallel(Cord *src, double *dest, Info* info, int chunkSize)
 {
     int local_counter = 0;
-    #pragma omp parallel for num_threads(chunkSize) reduction(+:local_counter)
-    for (int i = 0; i < chunkSize; i++)
-    {
-        // Iterate over data chunk assigned to each thread
-        int offset = omp_get_thread_num() * info->N;
-        Cord *tCountRegion = src + offset;
+    int *satisfiers = (int*) allocateArray(chunkSize * 3, sizeof(int));
+    int *results = calcProximityCriteria(src, chunkSize, info->D, info->N, info->K, satisfiers);
 
-        // Iterate over each region of points per t
-        int *satisfiers = calcProximityCriteria(tCountRegion, info->D, info->N, info->K);
-        if (satisfiers != NULL) {
-            satisfiers[PCT] = tCountRegion[0].t;
-            printf("%d %d %d\n", satisfiers[0], satisfiers[1], satisfiers[2]);
-            memcpy(&dest[omp_get_thread_num() * (PCT + 1)], satisfiers, sizeof(int) * (PCT + 1));
-            local_counter++;
+    #pragma omp parallel for num_threads(chunkSize) schedule(dynamic)
+    for (int tCount = 0; tCount < chunkSize; tCount++)
+    {
+        int* tPoints = satisfiers + tCount * 3;
+        if (results[tCount] == 1) {
+            #pragma omp critical
+            {
+                double t = src[info->N * tCount].t;
+                double* res = (double*) allocateArray(PCT + 1, sizeof(double));
+                res[0] = t; res[1] = (double) tPoints[0]; res[2] = (double) tPoints[1]; res[3] = (double) tPoints[2];
+                printf("%d %d %d\n", tPoints[0], tPoints[1], tPoints[2]);
+                memcpy(&dest[local_counter * (PCT + 1)], res, sizeof(double) * (PCT + 1));
+                local_counter++;
+            }
         }
     }
 

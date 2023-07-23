@@ -26,4 +26,4 @@ void parallel(int argc, char *argv[]);
 
 // CUDA Functions
 int calcCoordinates(Cord* cords, int pSize, int cSize);
-int* calcProximityCriteria(Cord* cords, double distance, int pSize, int k);
+int* calcProximityCriteria(Cord* cords, int tCount, double distance, int pSize, int k, int* output);
