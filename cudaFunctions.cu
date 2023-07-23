@@ -41,7 +41,7 @@ int calcCoordinates(Cord* cords, int pSize, int cSize) {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
     size_t c_tSize = cSize * pSize * sizeof(Cord);
-    int thread_num = 500;
+    int thread_num = 100;
     int block_num = cSize;
 
     // Allocate memory on GPU to copy the data from the host
@@ -109,7 +109,8 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
             if (Pi != Pj) {
                 Cord PiCords = cords[Pi];
                 Cord PjCords = cords[Pj];
-                count += arePointsInDistance(PiCords.x, PiCords.y, PjCords.x, PjCords.y, distance);
+                if (arePointsInDistance(PiCords.x, PiCords.y, PjCords.x, PjCords.y, distance))
+                    count ++;
             }
         }
 
@@ -121,7 +122,7 @@ __global__ void findFirstThreeOnes(const int* satisfiers, int* results, int* out
 
     __shared__ int counter;
     if (threadIdx.x == 0)
-        counter = -1;
+        counter = 0;
 
     __syncthreads();
 
@@ -130,19 +131,17 @@ __global__ void findFirstThreeOnes(const int* satisfiers, int* results, int* out
     int end = blockDim.x - 1 == threadIdx.x ? tOffset + pSize : start + pSize / blockDim.x;
 
     for (int i = start; i < end; i++) {
-        if (satisfiers[i]) {
+        if (satisfiers[i] == 1) {
             int currIndex = atomicAdd(&counter, 1);
             if (currIndex < 3) {
                 atomicExch(&output[blockIdx.x * 3 + currIndex], i % pSize);
             }
-            else if (currIndex + 1 >= 3) {
+            else if (currIndex >= 3) {
                 atomicExch(&results[blockIdx.x], 1);
                 break;
             }
         }
     }
-
-    __syncthreads();
 }
 
 int* calcProximityCriteria(Cord* cords, int tCount, double distance, int pSize, int k, int* output) {
@@ -200,7 +199,6 @@ int* calcProximityCriteria(Cord* cords, int tCount, double distance, int pSize, 
         exit(EXIT_FAILURE);
     }
 
-
     findFirstThreeOnes<<<block_num, thread_num>>>(s_A, d_results, d_output, pSize);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -225,12 +223,17 @@ int* calcProximityCriteria(Cord* cords, int tCount, double distance, int pSize, 
         exit(EXIT_FAILURE);
     }
 
-        // for (int i = 0; i < tCount; i++)
-        // printf("%d %d %d res: %d\n", output[i * 3], output[i * 3 + 1], output[i * 3 +2], results[i]);
-
     // Free allocated memory on GPU
     if (cudaFree(c_A) != cudaSuccess) {
         fprintf(stderr, "Failed to free c_A- %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    int* satisfiers = (int*)allocateArray(tCount * pSize, sizeof(int));
+    // Copy data from host to the GPU memory
+    err = cudaMemcpy(satisfiers, s_A, s_tSize, cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to copy data from host to device c_A - %s\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 

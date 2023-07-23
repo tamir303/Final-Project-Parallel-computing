@@ -44,17 +44,29 @@ Point *readPointArrayFromFile(char *fileName, Info **info)
 }
 
 void printResults(double *results, int counter) {
+    FILE* file;
+    char filename[] = "output.txt";
+
+    file = fopen(filename ,"w");
+
+    if (file == NULL) {
+        fprintf(stderr, "Failed to open output file\n");
+        exit(EXIT_FAILURE);
+    }
+
     if (counter == 0)
-        printf("There were no 3 points found for any t\n");
+        fprintf(file, "There were no 3 points found for any t\n");
     else
     {
         for (int i = 0; i < counter; i++)
         {
             int p1 = i * 4 + 1, p2 = i * 4 + 2, p3 = i * 4 + 3, t = i * 4;
-            printf("Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int)results[p1],
+            fprintf(file, "Points %d, %d, %d satisfy Proximity Criteria at t = %lf\n", (int)results[p1],
                     (int)results[p2], (int)results[p3], results[t]);
         }
     }
+
+    fclose(file);
 }
 
 void* allocateArray(size_t numElements, size_t elementSize) {

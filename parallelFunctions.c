@@ -42,7 +42,6 @@ int findProximityCriteriaParallel(Cord *src, double *dest, Info* info, int chunk
                 double t = src[info->N * tCount].t;
                 double* res = (double*) allocateArray(PCT + 1, sizeof(double));
                 res[0] = t; res[1] = (double) tPoints[0]; res[2] = (double) tPoints[1]; res[3] = (double) tPoints[2];
-                printf("%d %d %d\n", tPoints[0], tPoints[1], tPoints[2]);
                 memcpy(&dest[local_counter * (PCT + 1)], res, sizeof(double) * (PCT + 1));
                 local_counter++;
             }
