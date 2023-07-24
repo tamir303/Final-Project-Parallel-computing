@@ -108,7 +108,7 @@ __global__ void countPointsInDistance(Cord* cords, int* satisfiers, int pSize, d
         for (Pj = 0; Pj < pSize && count < k ; Pj++) {
             if (Pi != Pj) {
                 Cord PiCords = cords[Pi];
-                Cord PjCords = cords[Pj];
+                Cord PjCords = cords[tOffset + Pj];
                 if (arePointsInDistance(PiCords.x, PiCords.y, PjCords.x, PjCords.y, distance))
                     count ++;
             }

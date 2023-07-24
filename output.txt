@@ -1,0 +1,28 @@
+Points 727, 1578, 1660 satisfy Proximity Criteria at t = -0.980000
+Points 205, 2697, 1905 satisfy Proximity Criteria at t = -0.940000
+Points 3933, 2816, 3859 satisfy Proximity Criteria at t = -0.920000
+Points 2043, 1688, 3412 satisfy Proximity Criteria at t = -0.900000
+Points 3688, 891, 2512 satisfy Proximity Criteria at t = -0.840000
+Points 1320, 3652, 1741 satisfy Proximity Criteria at t = -0.740000
+Points 2520, 2602, 3054 satisfy Proximity Criteria at t = -0.700000
+Points 2520, 2602, 3054 satisfy Proximity Criteria at t = -0.300000
+Points 1320, 3652, 1741 satisfy Proximity Criteria at t = -0.260000
+Points 3688, 891, 2512 satisfy Proximity Criteria at t = -0.160000
+Points 2043, 1688, 3654 satisfy Proximity Criteria at t = -0.100000
+Points 3933, 2816, 3859 satisfy Proximity Criteria at t = -0.080000
+Points 205, 2697, 1905 satisfy Proximity Criteria at t = -0.060000
+Points 727, 1578, 1660 satisfy Proximity Criteria at t = -0.020000
+Points 480, 3282, 2764 satisfy Proximity Criteria at t = 0.040000
+Points 844, 1565, 3646 satisfy Proximity Criteria at t = 0.060000
+Points 3803, 3338, 1109 satisfy Proximity Criteria at t = 0.080000
+Points 3360, 2567, 3889 satisfy Proximity Criteria at t = 0.100000
+Points 3360, 2567, 3889 satisfy Proximity Criteria at t = 0.900000
+Points 3803, 3338, 1109 satisfy Proximity Criteria at t = 0.920000
+Points 844, 1565, 3646 satisfy Proximity Criteria at t = 0.940000
+Points 480, 3282, 2764 satisfy Proximity Criteria at t = 0.960000
+
+
+Points 957, 1183, 2028 satisfy Proximity Criteria at t = -0.700000
+Points 957, 1183, 2028 satisfy Proximity Criteria at t = -0.300000
+Points 247, 1109, 2935 satisfy Proximity Criteria at t = 0.060000
+Points 247, 1109, 2935 satisfy Proximity Criteria at t = 0.940000
