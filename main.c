@@ -11,14 +11,19 @@
 #include "createMPIStruct.h"
 #include "general.h"
 
-/*
-Simple MPI+OpenMP+CUDA Integration example
-Initially the array of size 4*PART is known for the process 0.
-It sends the half of the array to the process 1.
-Both processes start to increment members of thier members by 1 - partially with OpenMP, partially with CUDA
-The results is send from the process 1 to the process 0, which perform the test to verify that the integration worked properly
-*/
-
+/**
+ * @brief Main function of the MPI+OpenMP+CUDA integration example.
+ * 
+ * The main function reads command-line arguments to determine whether to run the parallel or sequential implementation.
+ * It initializes MPI, gets the size and rank of the current process, and performs the appropriate implementation.
+ * The parallel implementation uses MPI to distribute data among processes, OpenMP to perform local calculations, and CUDA for GPU acceleration.
+ * The sequential implementation performs all calculations sequentially without parallelization.
+ * The execution time and results are printed after each implementation.
+ * 
+ * @param argc The number of command-line arguments.
+ * @param argv An array of strings containing the command-line arguments.
+ * @return 0 on successful execution, non-zero otherwise.
+ */
 int main(int argc, char *argv[])
 {
    if (strcmp(argv[2], "par") == 0)
@@ -33,6 +38,19 @@ int main(int argc, char *argv[])
 
 // ########################################################## PARALLEL ##################################################
 
+
+/**
+ * @brief Run the parallel execution of the program.
+ *
+ * The parallel function initializes MPI, exchanges information between processes,
+ * reads data from the input file, calculates the coordinates of points for each time step
+ * in parallel using OpenMP and CUDA, finds points that satisfy the Proximity Criteria,
+ * and gathers the results to the master process for printing.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @return void
+ */
 void parallel(int argc, char *argv[])
 {
    int size, rank;
@@ -106,6 +124,18 @@ void parallel(int argc, char *argv[])
 
 // ########################################################## SEQUENTIAL ##################################################
 
+
+/**
+ * @brief Run the sequential execution of the program.
+ *
+ * The sequential function reads data from the input file, prepares the Cord array,
+ * calculates the coordinates of points for each time step sequentially,
+ * finds points that satisfy the Proximity Criteria, and prints the results.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @return void
+ */
 void sequential(int argc, char *argv[])
 {
    Info *info = NULL;
