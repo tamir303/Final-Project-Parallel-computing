@@ -7,6 +7,19 @@
 #include "sequentialFunctions.h"
 #include "general.h"
 
+/**
+ * @brief Initializes the Cord array sequentially.
+ *
+ * This function initializes the Cord array sequentially. It creates a 2D array of Cord structures
+ * to store point data with different values of 't'. The 't' values are calculated based on the
+ * number of intervals (info->tCount) and evenly distributed between -1.0 and 1.0. Each 't' value
+ * corresponds to a region of Cord structures initialized with the given 'points' data.
+ *
+ * @param info Pointer to the Info struct containing relevant information.
+ * @param points Pointer to the array of Point structures to be used for initialization.
+ *
+ * @return The initialized Cord array with point data at different 't' values.
+ */
 Cord *initCordsArraySequential(Info *info, Point *points)
 {
     Cord *cords = (Cord *) allocateArray((info->tCount + 1) * info->N, sizeof(Cord));
@@ -24,6 +37,16 @@ Cord *initCordsArraySequential(Info *info, Point *points)
     return cords;
 }
 
+/**
+ * @brief Calculates the x and y coordinates of points in the Cord array sequentially.
+ *
+ * This function calculates the x and y coordinates of points in the Cord array sequentially.
+ * It iterates through each 't' value and calculates the corresponding x and y coordinates based
+ * on the equations specified in the Point structure. The results are stored in the same Cord array.
+ *
+ * @param cords Pointer to the Cord array containing point data at different 't' values.
+ * @param info Pointer to the Info struct containing relevant information.
+ */
 void calcCordsSequential(Cord *cords, Info *info)
 {
     for (int tCount = 0; tCount <= info->tCount; tCount++)
@@ -39,6 +62,19 @@ void calcCordsSequential(Cord *cords, Info *info)
     }
 }
 
+/**
+ * @brief Finds points satisfying Proximity Criteria sequentially.
+ *
+ * This function finds points that satisfy the Proximity Criteria sequentially. It iterates through
+ * each 't' value and checks for groups of three points that satisfy the criteria. If found, the
+ * information of the three points is stored in the 'dest' array for further analysis.
+ *
+ * @param src Pointer to the Cord array containing point data at different 't' values.
+ * @param dest Pointer to the array where the results will be stored.
+ * @param info Pointer to the Info struct containing relevant information.
+ *
+ * @return The number of groups of three points that satisfy the Proximity Criteria.
+ */
 int findProximityCriteriaSequential(Cord *src, double *dest, Info *info)
 {
     int count_satisfy = 0;

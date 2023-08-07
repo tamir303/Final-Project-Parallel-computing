@@ -3,6 +3,17 @@
 #include <stdlib.h>
 #include <math.h>
 
+/**
+ * @brief Reads a point array from a file and populates an Info struct.
+ *
+ * This function reads point data from a file specified by fileName and allocates memory
+ * for a Point array. It also initializes an Info struct with data read from the file.
+ *
+ * @param fileName The name of the file containing point data.
+ * @param info A pointer to an Info pointer, which will be allocated and populated with data.
+ *
+ * @return A dynamically allocated Point array containing the point data.
+ */
 Point *readPointArrayFromFile(char *fileName, Info **info)
 {
     FILE *file = fopen(fileName, "r");
@@ -43,6 +54,16 @@ Point *readPointArrayFromFile(char *fileName, Info **info)
     return point;
 }
 
+/**
+ * @brief Prints the results to an output file.
+ *
+ * This function prints the results to an output file named "output.txt". It takes an array of
+ * doubles (results) and the counter indicating the number of results. If the counter is zero,
+ * it means no points were found satisfying the Proximity Criteria for any t.
+ *
+ * @param results An array of doubles containing the results.
+ * @param counter The number of points that satisfy the Proximity Criteria.
+ */
 void printResults(double *results, int counter) {
     FILE* file;
     char filename[] = "output.txt";
@@ -69,6 +90,16 @@ void printResults(double *results, int counter) {
     fclose(file);
 }
 
+/**
+ * @brief Allocates memory for a generic array.
+ *
+ * This function dynamically allocates memory for a generic array of specified size.
+ *
+ * @param numElements The number of elements in the array.
+ * @param elementSize The size of each element in bytes.
+ *
+ * @return A pointer to the allocated memory.
+ */
 void* allocateArray(size_t numElements, size_t elementSize) {
     void* array = malloc(numElements * elementSize);
     if (array == NULL) {
